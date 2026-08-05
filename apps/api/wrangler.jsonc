@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "api-flow-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // D1 Database binding
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "api-flow-db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ],
+
+  // KV Namespace for session cache (optional, Better Auth uses DB by default)
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "SESSION_KV",
+  //     "id": "YOUR_KV_NAMESPACE_ID"
+  //   }
+  // ],
+
+  // Durable Objects for scheduled API calls
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SCHEDULER",
+        "class_name": "SchedulerDO"
+      }
+    ]
+  },
+
+  // Migrations for Durable Objects
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SchedulerDO"]
+    }
+  ],
+
+  // Environment variables (set via wrangler secret or dashboard)
+  "vars": {
+    "APP_ENV": "development"
+  },
+
+  // Dev server config
+  "dev": {
+    "port": 8787
+  }
+}

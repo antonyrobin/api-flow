@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Base Styles — Premium Dark Theme
+   ============================================ */
+
+@layer base {
+  :root {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 95%;
+    --card: 240 10% 7%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 10% 7%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 168 76% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 10% 14%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 10% 18%;
+    --muted-foreground: 240 5% 55%;
+    --accent: 240 10% 14%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 18%;
+    --input: 240 10% 18%;
+    --ring: 168 76% 42%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+
+  body {
+    @apply bg-surface-0 text-gray-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-4 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-5;
+  }
+}
+
+/* ============================================
+   Component Utilities
+   ============================================ */
+
+@layer components {
+  /* Glass morphism card */
+  .glass-card {
+    @apply bg-surface-1/80 backdrop-blur-md border border-white/5 rounded-xl;
+  }
+
+  /* Glass morphism panel */
+  .glass-panel {
+    @apply bg-surface-2/60 backdrop-blur-sm border border-white/5 rounded-lg;
+  }
+
+  /* Glow effect for primary elements */
+  .glow-brand {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.15),
+                0 0 60px rgba(20, 184, 166, 0.05);
+  }
+
+  /* Status dot indicator */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot-active {
+    @apply bg-emerald-500 animate-pulse-dot;
+  }
+
+  .status-dot-inactive {
+    @apply bg-gray-500;
+  }
+
+  .status-dot-error {
+    @apply bg-red-500;
+  }
+
+  /* Method badge */
+  .method-badge {
+    @apply px-2 py-0.5 rounded text-2xs font-bold uppercase tracking-wider;
+  }
+
+  /* Input field styling */
+  .input-field {
+    @apply bg-surface-2 border border-white/10 rounded-lg px-3 py-2
+           text-sm text-gray-200 placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
+           transition-all duration-200;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2
+           rounded-lg transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-500/50
+           active:scale-[0.98]
+           shadow-lg shadow-brand-600/20;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-3 hover:bg-surface-4 text-gray-200 font-medium px-4 py-2
+           rounded-lg border border-white/5 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-white/10
+           active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply text-gray-400 hover:text-gray-200 hover:bg-surface-3 px-3 py-2
+           rounded-lg transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-red-600/20 hover:bg-red-600/30 text-red-400 font-medium px-4 py-2
+           rounded-lg border border-red-500/20 transition-all duration-200
+           active:scale-[0.98];
+  }
+
+  /* Tab button */
+  .tab-button {
+    @apply px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-gray-200
+           border-b-2 border-transparent hover:border-gray-600
+           transition-all duration-200;
+  }
+
+  .tab-button-active {
+    @apply text-brand-400 border-brand-400;
+  }
+
+  /* Sidebar item */
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm
+           text-gray-400 hover:text-gray-200 hover:bg-surface-3
+           cursor-pointer transition-all duration-150;
+  }
+
+  .sidebar-item-active {
+    @apply bg-brand-600/10 text-brand-400 border-l-2 border-brand-500;
+  }
+
+  /* Key-value row */
+  .kv-row {
+    @apply flex items-center gap-2 py-1;
+  }
+
+  /* Resizable panel handle */
+  .resize-handle {
+    @apply w-full h-1.5 cursor-row-resize bg-transparent
+           hover:bg-brand-500/20 transition-colors duration-200
+           flex items-center justify-center;
+  }
+
+  .resize-handle::after {
+    content: "";
+    @apply w-8 h-0.5 bg-surface-4 rounded-full group-hover:bg-brand-500/50;
+  }
+}
+
+/* ============================================
+   Utility Animations
+   ============================================ */
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent;
+  }
+
+  .gradient-border {
+    border-image: linear-gradient(to right, #14b8a6, #06b6d4) 1;
+  }
+}
