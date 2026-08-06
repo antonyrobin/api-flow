@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "npx @cloudflare/next-on-pages",
-    "deploy": "wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
+    "build": "next build",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "deploy": "pnpm run pages:build && wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
