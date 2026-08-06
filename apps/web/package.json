@@ -7,7 +7,8 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "deploy": "pnpm run pages:build && wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
+    "pages:deploy": "npx wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
+    "deploy": "pnpm run pages:build && pnpm run pages:deploy",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

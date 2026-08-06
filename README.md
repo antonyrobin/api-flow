@@ -203,8 +203,7 @@ pnpm --filter @api-flow/web deploy
    - **Framework preset**: `None` (or `Next.js`)
    - **Root directory**: `apps/web`
    - **Build command**: `pnpm run pages:build`
-   - **Build output directory**: `.vercel/output/static`
-   - **Deploy command**: *(leave empty)*
+   - **Deploy command**: `pnpm run pages:deploy`
 4. Add Environment Variables in Cloudflare Pages Settings:
    - `NEXT_PUBLIC_API_URL`: `https://api-flow-api.<your-subdomain>.workers.dev`
    - `NEXT_PUBLIC_APP_URL`: `https://<your-pages-app>.pages.dev`
