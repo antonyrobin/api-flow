@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
+    "build": "npx @cloudflare/next-on-pages",
+    "deploy": "wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.7",
     "@cloudflare/workers-types": "^4.20250101.0",
+    "wrangler": "^3.100.0",
     "@tailwindcss/typography": "^0.5.0",
     "@types/node": "20.17.6",
     "@types/react": "^19.0.0",

@@ -189,15 +189,22 @@ Once deployed, Cloudflare will provide your worker URL (e.g. `https://api-flow-a
 
 You can deploy the Next.js frontend to **Cloudflare Pages** or **Vercel**.
 
-#### Deploying to Cloudflare Pages (Recommended):
+#### Deploying via Wrangler CLI:
+```bash
+# From root directory
+pnpm --filter @api-flow/web deploy
+```
+
+#### Deploying via Cloudflare Dashboard (Git Integration):
 
 1. **Push your code to GitHub / GitLab**.
 2. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> **Workers & Pages** -> **Create application** -> **Pages** -> **Connect to Git**.
 3. Select the `api-flow` repository and configure build settings:
-   - **Framework preset**: `Next.js`
+   - **Framework preset**: `None` (or `Next.js`)
    - **Root directory**: `apps/web`
-   - **Build command**: `npx @cloudflare/next-on-pages` or `pnpm build`
-   - **Build output directory**: `.next`
+   - **Build command**: `pnpm build`
+   - **Build output directory**: `.vercel/output/static`
+   - **Deploy command**: `pnpm deploy`
 4. Add Environment Variables in Cloudflare Pages Settings:
    - `NEXT_PUBLIC_API_URL`: `https://api-flow-api.<your-subdomain>.workers.dev`
    - `NEXT_PUBLIC_APP_URL`: `https://<your-pages-app>.pages.dev`
