@@ -3,25 +3,24 @@
   "name": "api-flow-api",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
-  "compatibility_flags": ["nodejs_compat"],
-
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   // D1 Database binding
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "api-flow-db",
-      "database_id": "YOUR_D1_DATABASE_ID"
+      "database_id": "537824d2-b6b0-44fa-84ce-c5dbc1b3e57a"
     }
   ],
-
   // KV Namespace for session cache (optional, Better Auth uses DB by default)
   // "kv_namespaces": [
-  //   {
+  //   {pnpm db:generate
   //     "binding": "SESSION_KV",
   //     "id": "YOUR_KV_NAMESPACE_ID"
   //   }
   // ],
-
   // Durable Objects for scheduled API calls
   "durable_objects": {
     "bindings": [
@@ -31,20 +30,19 @@
       }
     ]
   },
-
   // Migrations for Durable Objects
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["SchedulerDO"]
+      "new_sqlite_classes": [
+        "SchedulerDO"
+      ]
     }
   ],
-
   // Environment variables (set via wrangler secret or dashboard)
   "vars": {
     "APP_ENV": "development"
   },
-
   // Dev server config
   "dev": {
     "port": 8787
