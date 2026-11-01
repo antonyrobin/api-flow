@@ -36,3 +36,6 @@ coverage/
 # Misc
 *.log
 *.tsbuildinfo
+
+# next-on-pages / Vercel CLI leftovers
+.vercel/

@@ -23,7 +23,7 @@ const csp = [
   ...(isDev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
-const securityHeaders = [
+export const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -35,24 +35,27 @@ const securityHeaders = [
     : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]),
 ];
 
+/**
+ * Production builds are a static export (`out/`) served by Cloudflare Pages:
+ * every page is client-rendered, so no server runtime is needed and the build
+ * works on any OS. Security headers for production are written to `out/_headers`
+ * by scripts/write-pages-headers.mjs; `headers()`/`rewrites()` only apply to `next dev`.
+ */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@api-flow/shared"],
-
-  async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
-  },
-
-  // Allow API proxy in development
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiUrl}/:path*`,
-      },
-    ];
-  },
+  ...(isDev
+    ? {
+        async headers() {
+          return [{ source: "/:path*", headers: securityHeaders }];
+        },
+      }
+    : {
+        output: "export",
+        // No image optimisation server on a static host
+        images: { unoptimized: true },
+      }),
 };
 
 export default nextConfig;

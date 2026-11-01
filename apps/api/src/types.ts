@@ -36,6 +36,8 @@ export interface Env {
   APPLE_CLIENT_ID: string;
   APPLE_CLIENT_SECRET: string;
   APPLE_APP_BUNDLE_IDENTIFIER?: string;
+  // "true" to offer Sign in with Apple (disabled by default)
+  APPLE_SIGNIN_ENABLED?: string;
 
   // Transactional email (Resend — https://resend.com)
   RESEND_API_KEY?: string;

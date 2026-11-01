@@ -7,6 +7,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3100
 # Optional OAuth providers (leave empty to disable — the buttons are hidden)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+# Apple sign-in is hidden unless APPLE_SIGNIN_ENABLED=true (and the two values below are set)
+APPLE_SIGNIN_ENABLED=false
 # Apple: Services ID (e.g. com.yourcompany.apiflow.web) + the generated client-secret JWT
 APPLE_CLIENT_ID=
 APPLE_CLIENT_SECRET=

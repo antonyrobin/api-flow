@@ -8,7 +8,11 @@
     "typecheck": "turbo typecheck",
     "db:generate": "pnpm --filter @api-flow/db generate",
     "db:migrate": "pnpm --filter @api-flow/db migrate",
-    "clean": "turbo clean && rm -rf node_modules"
+    "db:migrate:prod": "pnpm --filter @api-flow/db migrate:prod",
+    "clean": "turbo clean && rm -rf node_modules",
+    "deploy:api": "pnpm --filter @api-flow/api run deploy",
+    "deploy:web": "pnpm --filter @api-flow/web run deploy",
+    "deploy:all": "pnpm run db:migrate:prod && pnpm run deploy:api && pnpm run deploy:web"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

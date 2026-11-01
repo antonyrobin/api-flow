@@ -25,7 +25,8 @@ const SESSION_UPDATE_AGE = 60 * 60 * 24;
 export function configuredProviders(env: Env) {
   return {
     google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-    apple: !!(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET),
+    // Sign in with Apple stays off until APPLE_SIGNIN_ENABLED=true (in addition to its credentials)
+    apple: env.APPLE_SIGNIN_ENABLED === "true" && !!(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET),
   };
 }
 

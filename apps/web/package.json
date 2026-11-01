@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev --port 3100",
     "build": "next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:deploy": "npx wrangler pages deploy .vercel/output/static --project-name=api-flow-web",
+    "pages:build": "next build && node scripts/write-pages-headers.mjs",
+    "pages:deploy": "wrangler pages deploy out --project-name=api-flow-web --branch=main --commit-dirty=true",
     "deploy": "pnpm run pages:build && pnpm run pages:deploy",
     "start": "next start",
     "lint": "next lint",
@@ -29,7 +29,6 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.7",
     "@cloudflare/workers-types": "^4.20250101.0",
     "wrangler": "^3.100.0",
     "@tailwindcss/typography": "^0.5.0",

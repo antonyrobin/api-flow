@@ -7,11 +7,11 @@
 | Layer | Technology |
 |---|---|
 | **Monorepo** | Turborepo + pnpm |
-| **Web App** | Next.js 15 (App Router, Tailwind CSS, TanStack Query, Zustand) |
+| **Web App** | Next.js 15 (App Router, static export on Cloudflare Pages, Tailwind CSS, TanStack Query, Zustand) |
 | **API Server** | Hono (Cloudflare Workers) |
 | **Database** | Cloudflare D1 (SQLite at Edge) |
 | **ORM** | Drizzle ORM |
-| **Auth** | Better Auth (Google, Apple, Email + Verification) |
+| **Auth** | Better Auth (Email + verification, Google; Apple optional) · Resend email |
 | **Background Jobs** | Cloudflare Durable Objects + Alarms |
 | **Styling** | Tailwind CSS + shadcn/ui design patterns |
 
@@ -189,69 +189,135 @@ pnpm --filter @api-flow/db migrate:prod
 
 ---
 
-## Deployment & Setup Guide (Cloudflare Workers & Pages)
+## Deployment (Cloudflare Workers + Pages)
 
-### 1. Deploying the Backend REST API (`apps/api`)
+| Part | Hosted on | Command (run from the repo root) |
+|---|---|---|
+| Database migrations | Cloudflare D1 | `pnpm db:migrate:prod` |
+| API (`apps/api`) | Cloudflare Workers | `pnpm deploy:api` |
+| Web app (`apps/web`) | Cloudflare Pages (static files) | `pnpm deploy:web` |
+| All three, in order | | `pnpm deploy:all` |
 
-#### A. Set Secrets & Environment Variables on Cloudflare Workers
+> **Why not `pnpm --filter … deploy`?** `deploy` is a built-in pnpm command (it copies a package to a
+> folder), so it shadows the package script and fails with `ERR_PNPM_INVALID_DEPLOY_TARGET`.
+> Use the root scripts above, or call the script explicitly: `pnpm --filter @api-flow/api run deploy`.
 
-For production secrets (such as Better Auth secrets and OAuth keys), set them using `wrangler secret`:
+The web app is a **Next.js static export** (`apps/web/out`). Every page is client-rendered and talks to the
+API Worker, so no server runtime (and no `@cloudflare/next-on-pages` / Vercel CLI) is needed — the build
+works the same on Windows, macOS, Linux and in CI.
+
+### 0. One-time setup
+
+```bash
+# Log in to Cloudflare (opens the browser)
+npx wrangler login
+```
+
+### 1. Migrate the production database
+
+```bash
+pnpm db:migrate:prod
+```
+Runs `wrangler d1 migrations apply api-flow-db --remote`. Run it whenever `packages/db/migrations` changes.
+
+### 2. Deploy the API Worker (`apps/api`)
+
+#### A. Set the Worker secrets (once, and whenever a value changes)
 
 ```bash
 cd apps/api
 
-# Better Auth Secret
-npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put BETTER_AUTH_SECRET     # random string, 32+ chars
+npx wrangler secret put BETTER_AUTH_URL        # this Worker's URL, e.g. https://api-flow-api.<you>.workers.dev
+npx wrangler secret put NEXT_PUBLIC_APP_URL    # the web app URL, e.g. https://api-flow-web.pages.dev
 
-# Better Auth Base URL
-npx wrangler secret put BETTER_AUTH_URL
-
-# Web app origin (used for CORS + trusted origins). Extra origins: ALLOWED_ORIGINS (comma-separated)
-npx wrangler secret put NEXT_PUBLIC_APP_URL
-
-# Google OAuth
+# Google sign-in
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 
-# Apple OAuth
-npx wrangler secret put APPLE_CLIENT_ID
-npx wrangler secret put APPLE_CLIENT_SECRET
+# Email (Resend)
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put EMAIL_FROM             # e.g. API Flow <noreply@yourdomain.com>
+
+cd ../..
 ```
 
-#### B. Deploy the API Worker to Cloudflare
+Optional: `ALLOWED_ORIGINS` (extra comma-separated web origins, e.g. a custom domain).
+Sign in with Apple is **disabled**; to enable it later set `APPLE_SIGNIN_ENABLED=true` plus
+`APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` (see the auth guide below). List what's set with
+`npx wrangler secret list` (from `apps/api`).
+
+#### B. Deploy
 
 ```bash
-# From root directory
-pnpm --filter @api-flow/api deploy
+pnpm deploy:api
 ```
 
-Once deployed, Cloudflare will provide your worker URL (e.g. `https://api-flow-api.<your-subdomain>.workers.dev`).
+Wrangler prints the Worker URL (e.g. `https://api-flow-api.<your-subdomain>.workers.dev`).
+Check it: opening `https://<worker-url>/` returns `{"name":"API Flow","status":"ok",…}`.
 
----
+### 3. Deploy the web app (`apps/web`)
 
-### 2. Deploying the Frontend Web App (`apps/web`)
+#### A. Point the build at your API (once)
 
-You can deploy the Next.js frontend to **Cloudflare Pages** or **Vercel**.
+`NEXT_PUBLIC_*` values are baked into the static files at build time:
 
-#### Deploying via Wrangler CLI:
 ```bash
-# From root directory
-pnpm --filter @api-flow/web deploy
+# Windows (PowerShell)
+Copy-Item apps/web/.env.production.example apps/web/.env.production.local
+# macOS / Linux
+cp apps/web/.env.production.example apps/web/.env.production.local
 ```
 
-#### Deploying via Cloudflare Dashboard (Git Integration):
+Edit `apps/web/.env.production.local` (git-ignored):
 
-1. **Push your code to GitHub / GitLab**.
-2. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) -> **Workers & Pages** -> **Create application** -> **Pages** -> **Connect to Git**.
-3. Select the `api-flow` repository and configure build settings:
-   - **Framework preset**: `None` (or `Next.js`)
+```bash
+NEXT_PUBLIC_API_URL=https://api-flow-api.<your-subdomain>.workers.dev
+NEXT_PUBLIC_APP_URL=https://api-flow-web.pages.dev
+```
+
+#### B. Deploy
+
+```bash
+pnpm deploy:web
+```
+
+This runs `next build` → `apps/web/out`, writes `out/_headers` (CSP + security headers, with
+`connect-src` set to your API) and uploads with `wrangler pages deploy out --project-name=api-flow-web --branch=main`.
+The first run creates the `api-flow-web` Pages project if it doesn't exist. The build stops with a clear
+message if `NEXT_PUBLIC_API_URL` is missing or still points at localhost.
+
+> If your Pages project's production branch isn't `main`, change `--branch` in
+> `apps/web/package.json` → `pages:deploy`, otherwise the upload lands as a preview deployment.
+
+#### Alternative: Cloudflare Pages Git integration
+
+1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → pick the repo.
+2. Build settings:
+   - **Framework preset**: `None`
    - **Root directory**: `apps/web`
    - **Build command**: `pnpm run pages:build`
-   - **Deploy command**: `pnpm run pages:deploy`
-4. Add Environment Variables in Cloudflare Pages Settings:
-   - `NEXT_PUBLIC_API_URL`: `https://api-flow-api.<your-subdomain>.workers.dev`
-   - `NEXT_PUBLIC_APP_URL`: `https://<your-pages-app>.pages.dev`
-5. Click **Save and Deploy**.
+   - **Build output directory**: `out`
+3. **Environment variables** (Production): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL` (as above).
+4. Save and Deploy. Every push to the production branch redeploys the web app
+   (the API still deploys with `pnpm deploy:api`).
+
+### 4. After deploying
+
+- Add the web URL to **Google Cloud → OAuth client → Authorized JavaScript origins**, and
+  `https://<worker-url>/auth/callback/google` to **Authorized redirect URIs**.
+- Open the web app, register, confirm the verification email arrives, then sign in.
+- Changing the API URL or any `NEXT_PUBLIC_*` value requires `pnpm deploy:web` again.
+
+### Troubleshooting deployment
+
+| Symptom | Fix |
+|---|---|
+| `ERR_PNPM_INVALID_DEPLOY_TARGET  This command requires one parameter` | Use `pnpm deploy:api` / `pnpm deploy:web` (or `pnpm --filter <pkg> run deploy`). |
+| `spawn pnpm ENOENT` from `@cloudflare/next-on-pages` | Old build pipeline (not Windows-compatible). Pull the latest code — the web app now builds with plain `next build`. |
+| Sign-in works locally but not in production / CORS errors | `NEXT_PUBLIC_APP_URL` secret on the Worker must exactly match the web origin (no trailing slash). Extra domains go in `ALLOWED_ORIGINS`. |
+| Web app calls `localhost:8787` in production | `apps/web/.env.production.local` missing or wrong — fix it and run `pnpm deploy:web`. |
+| "Provider not found" on social login | That provider's secrets aren't set on the Worker (`npx wrangler secret list`). |
 
 ---
 

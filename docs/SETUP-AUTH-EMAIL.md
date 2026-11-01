@@ -42,7 +42,10 @@ and `NEXT_PUBLIC_APP_URL` is the web app URL. OAuth callbacks always go to `{BET
    ```
 6. Restart / redeploy. "Continue with Google" appears on `/login` and `/register`.
 
-## 2. Sign in with Apple
+## 2. Sign in with Apple (currently disabled)
+
+Apple sign-in is **off by default** — its buttons stay hidden until you set `APPLE_SIGNIN_ENABLED=true`
+on the Worker in addition to the credentials below (`npx wrangler secret put APPLE_SIGNIN_ENABLED`).
 
 Requires a paid **Apple Developer Program** membership. Apple does **not** allow `localhost` or plain
 HTTP return URLs, so test against your deployed API (or an HTTPS tunnel such as `cloudflared tunnel`).
@@ -70,6 +73,7 @@ HTTP return URLs, so test against your deployed API (or an HTTPS tunnel such as 
    ```bash
    npx wrangler secret put APPLE_CLIENT_ID      # com.yourcompany.apiflow.web
    npx wrangler secret put APPLE_CLIENT_SECRET  # the JWT printed above
+   npx wrangler secret put APPLE_SIGNIN_ENABLED # true
    ```
 7. **Set a reminder**: regenerate `APPLE_CLIENT_SECRET` before the expiry date the script prints.
 
