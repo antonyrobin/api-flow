@@ -34,7 +34,7 @@ export function AuthConfig() {
                 "border",
                 activeRequest.authType === type
                   ? "bg-brand-600/10 border-brand-500/30 text-brand-400"
-                  : "bg-surface-2 border-white/5 text-gray-400 hover:bg-surface-3 hover:text-gray-200"
+                  : "bg-surface-2 border-line/5 text-gray-400 hover:bg-surface-3 hover:text-gray-200"
               )}
             >
               <Icon className="w-4 h-4 shrink-0" />
@@ -154,7 +154,7 @@ export function AuthConfig() {
                       activeRequest.authConfig.apiKeyLocation === loc ||
                         (!activeRequest.authConfig.apiKeyLocation && loc === "header")
                         ? "bg-brand-600/20 border-brand-500/30 text-brand-400"
-                        : "border-white/10 text-gray-400 hover:bg-surface-3"
+                        : "border-line/10 text-gray-400 hover:bg-surface-3"
                     )}
                   >
                     {loc === "header" ? "Header" : "Query Param"}

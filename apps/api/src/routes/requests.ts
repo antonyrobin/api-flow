@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { eq, and } from "drizzle-orm";
-import { createDb, requests } from "@api-flow/db";
+import { validateJson } from "../lib/validate";
+import { eq, and, desc } from "drizzle-orm";
+import { createDb, requests, collections, collectionFolders, type Database } from "@api-flow/db";
 import {
   createRequestSchema,
   updateRequestSchema,
@@ -18,6 +18,41 @@ export const requestsRoutes = new Hono<{
 // All request routes require authentication
 requestsRoutes.use("*", requireAuth);
 
+/**
+ * Verify that the target collection / folder (if any) belong to the user,
+ * so requests cannot be attached to another user's collection.
+ */
+async function validateParents(
+  db: Database,
+  userId: string,
+  collectionId?: string | null,
+  folderId?: string | null
+): Promise<string | null> {
+  if (collectionId) {
+    const collection = await db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(and(eq(collections.id, collectionId), eq(collections.userId, userId)))
+      .get();
+    if (!collection) return "Collection not found";
+  }
+  if (folderId) {
+    if (!collectionId) return "folderId requires collectionId";
+    const folder = await db
+      .select({ id: collectionFolders.id })
+      .from(collectionFolders)
+      .where(
+        and(
+          eq(collectionFolders.id, folderId),
+          eq(collectionFolders.collectionId, collectionId)
+        )
+      )
+      .get();
+    if (!folder) return "Folder not found";
+  }
+  return null;
+}
+
 // ============================================
 // GET /requests — List user's saved requests
 // ============================================
@@ -27,24 +62,19 @@ requestsRoutes.get("/", async (c) => {
   const collectionId = c.req.query("collectionId");
   const folderId = c.req.query("folderId");
 
-  let query = db
+  const result = await db
     .select()
     .from(requests)
-    .where(eq(requests.userId, userId))
-    .orderBy(requests.sortOrder);
+    .where(
+      and(
+        eq(requests.userId, userId),
+        collectionId ? eq(requests.collectionId, collectionId) : undefined,
+        folderId ? eq(requests.folderId, folderId) : undefined
+      )
+    )
+    .orderBy(requests.sortOrder, desc(requests.updatedAt));
 
-  const result = await query;
-
-  // Filter in JS if needed (D1 doesn't support dynamic where chains well)
-  let filtered = result;
-  if (collectionId) {
-    filtered = filtered.filter((r) => r.collectionId === collectionId);
-  }
-  if (folderId) {
-    filtered = filtered.filter((r) => r.folderId === folderId);
-  }
-
-  return c.json({ data: filtered });
+  return c.json({ data: result });
 });
 
 // ============================================
@@ -73,12 +103,17 @@ requestsRoutes.get("/:id", async (c) => {
 // ============================================
 requestsRoutes.post(
   "/",
-  zValidator("json", createRequestSchema as any),
+  validateJson(createRequestSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
     const body = c.req.valid("json") as any;
     const now = nowISO();
+
+    const parentError = await validateParents(db, userId, body.collectionId, body.folderId);
+    if (parentError) {
+      return c.json({ error: { message: parentError } }, 400);
+    }
 
     const newRequest = {
       id: nanoid(),
@@ -112,7 +147,7 @@ requestsRoutes.post(
 // ============================================
 requestsRoutes.patch(
   "/:id",
-  zValidator("json", updateRequestSchema as any),
+  validateJson(updateRequestSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -127,6 +162,18 @@ requestsRoutes.patch(
 
     if (!existing || existing.userId !== userId) {
       return c.json({ error: { message: "Request not found" } }, 404);
+    }
+
+    if (body.collectionId !== undefined || body.folderId !== undefined) {
+      const parentError = await validateParents(
+        db,
+        userId,
+        body.collectionId !== undefined ? body.collectionId : existing.collectionId,
+        body.folderId !== undefined ? body.folderId : existing.folderId
+      );
+      if (parentError) {
+        return c.json({ error: { message: parentError } }, 400);
+      }
     }
 
     const updates: Record<string, unknown> = { updatedAt: nowISO() };

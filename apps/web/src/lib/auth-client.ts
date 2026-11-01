@@ -1,13 +1,17 @@
 import { createAuthClient } from "better-auth/react";
+import { API_URL } from "./config";
 
 /**
  * Better Auth client for React.
  * Provides hooks and methods for authentication flows.
+ * basePath must match `basePath` in apps/api/src/lib/auth.ts.
  */
 export const authClient = createAuthClient({
-  baseURL:
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787",
+  baseURL: API_URL,
   basePath: "/auth",
+  fetchOptions: {
+    credentials: "include",
+  },
 });
 
 export const {
@@ -15,4 +19,7 @@ export const {
   signUp,
   signOut,
   useSession,
+  requestPasswordReset,
+  resetPassword,
+  sendVerificationEmail,
 } = authClient;

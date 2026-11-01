@@ -8,6 +8,20 @@
       "when": 1785948725690,
       "tag": "0000_lyrical_phil_sheldon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793470757613,
+      "tag": "0001_monitors",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793472242541,
+      "tag": "0002_monitor_background",
+      "breakpoints": true
     }
   ]
 }

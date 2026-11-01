@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { eq } from "drizzle-orm";
-import { createDb, environments, environmentVariables } from "@api-flow/db";
+import { validateJson } from "../lib/validate";
+import { eq, and } from "drizzle-orm";
+import { createDb, environments, environmentVariables, type Database } from "@api-flow/db";
 import {
   createEnvironmentSchema,
   updateEnvironmentSchema,
@@ -18,6 +18,15 @@ export const environmentsRoutes = new Hono<{
 }>();
 
 environmentsRoutes.use("*", requireAuth);
+
+async function ownsEnvironment(db: Database, envId: string, userId: string) {
+  const env = await db
+    .select({ id: environments.id })
+    .from(environments)
+    .where(and(eq(environments.id, envId), eq(environments.userId, userId)))
+    .get();
+  return !!env;
+}
 
 // ============================================
 // GET /environments — List user's environments
@@ -59,7 +68,7 @@ environmentsRoutes.get("/", async (c) => {
 // ============================================
 environmentsRoutes.post(
   "/",
-  zValidator("json", createEnvironmentSchema as any),
+  validateJson(createEnvironmentSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -94,7 +103,7 @@ environmentsRoutes.post(
 // ============================================
 environmentsRoutes.patch(
   "/:id",
-  zValidator("json", updateEnvironmentSchema as any),
+  validateJson(updateEnvironmentSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -158,7 +167,7 @@ environmentsRoutes.delete("/:id", async (c) => {
 // ============================================
 environmentsRoutes.post(
   "/:id/variables",
-  zValidator("json", createVariableSchema.omit({ environmentId: true }) as any),
+  validateJson(createVariableSchema.omit({ environmentId: true })),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -196,12 +205,17 @@ environmentsRoutes.post(
 // ============================================
 environmentsRoutes.patch(
   "/:envId/variables/:varId",
-  zValidator("json", updateVariableSchema as any),
+  validateJson(updateVariableSchema),
   async (c) => {
     const db = createDb(c.env.DB);
+    const userId = c.get("user").id;
     const envId = c.req.param("envId");
     const varId = c.req.param("varId");
     const body = c.req.valid("json") as any;
+
+    if (!(await ownsEnvironment(db, envId, userId))) {
+      return c.json({ error: { message: "Environment not found" } }, 404);
+    }
 
     const updates: Record<string, unknown> = {};
     if (body.key !== undefined) updates.key = body.key;
@@ -211,7 +225,12 @@ environmentsRoutes.patch(
     await db
       .update(environmentVariables)
       .set(updates)
-      .where(eq(environmentVariables.id, varId));
+      .where(
+        and(
+          eq(environmentVariables.id, varId),
+          eq(environmentVariables.environmentId, envId)
+        )
+      );
 
     return c.json({ data: { id: varId, ...updates } });
   }
@@ -222,11 +241,22 @@ environmentsRoutes.patch(
 // ============================================
 environmentsRoutes.delete("/:envId/variables/:varId", async (c) => {
   const db = createDb(c.env.DB);
+  const userId = c.get("user").id;
+  const envId = c.req.param("envId");
   const varId = c.req.param("varId");
+
+  if (!(await ownsEnvironment(db, envId, userId))) {
+    return c.json({ error: { message: "Environment not found" } }, 404);
+  }
 
   await db
     .delete(environmentVariables)
-    .where(eq(environmentVariables.id, varId));
+    .where(
+      and(
+        eq(environmentVariables.id, varId),
+        eq(environmentVariables.environmentId, envId)
+      )
+    );
 
   return c.json({ data: { id: varId, deleted: true } });
 });

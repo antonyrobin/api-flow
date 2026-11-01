@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
+import { validateJson } from "../lib/validate";
 import { eq, desc } from "drizzle-orm";
 import { createDb, schedules, scheduleLogs, requests } from "@api-flow/db";
 import {
@@ -66,7 +66,7 @@ schedulesRoutes.get("/:id", async (c) => {
 // ============================================
 schedulesRoutes.post(
   "/",
-  zValidator("json", createScheduleSchema as any),
+  validateJson(createScheduleSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -85,33 +85,12 @@ schedulesRoutes.post(
     }
 
     const scheduleId = nanoid();
-
-    // Create the Durable Object for this schedule
     const doId = c.env.SCHEDULER.idFromName(scheduleId);
-    const stub = c.env.SCHEDULER.get(doId);
-
-    // Initialize the Durable Object with schedule config
-    const nextRunAt = new Date(
-      Date.now() + body.intervalSeconds * 1000
-    ).toISOString();
-
-    await stub.fetch(
-      new Request("https://internal/init", {
-        method: "POST",
-        body: JSON.stringify({
-          scheduleId,
-          requestId: body.requestId,
-          intervalSeconds: body.intervalSeconds,
-          cronExpression: body.cronExpression,
-          requestConfig: {
-            method: request.method,
-            url: request.url,
-            headers: request.headers,
-            body: request.body,
-          },
-        }),
-      })
-    );
+    const isActive = body.isActive ?? true;
+    const maxRetries = body.maxRetries ?? 3;
+    const nextRunAt = isActive
+      ? new Date(Date.now() + body.intervalSeconds * 1000).toISOString()
+      : null;
 
     const newSchedule = {
       id: scheduleId,
@@ -120,16 +99,43 @@ schedulesRoutes.post(
       name: body.name,
       intervalSeconds: body.intervalSeconds,
       cronExpression: body.cronExpression || null,
-      isActive: body.isActive ?? true,
+      isActive,
       lastRunAt: null,
       nextRunAt,
       durableObjectId: doId.toString(),
-      maxRetries: body.maxRetries ?? 3,
+      maxRetries,
       createdAt: now,
       updatedAt: now,
     };
 
+    // Insert first so the Durable Object can never run for a schedule that does not exist
     await db.insert(schedules).values(newSchedule);
+
+    try {
+      const stub = c.env.SCHEDULER.get(doId);
+      await stub.fetch(
+        new Request("https://internal/init", {
+          method: "POST",
+          body: JSON.stringify({
+            scheduleId,
+            requestId: body.requestId,
+            intervalSeconds: body.intervalSeconds,
+            cronExpression: body.cronExpression,
+            maxRetries,
+            isActive,
+            requestConfig: {
+              method: request.method,
+              url: request.url,
+              headers: request.headers,
+              body: request.body,
+            },
+          }),
+        })
+      );
+    } catch (err) {
+      await db.delete(schedules).where(eq(schedules.id, scheduleId));
+      throw err;
+    }
 
     return c.json({ data: newSchedule }, 201);
   }
@@ -140,7 +146,7 @@ schedulesRoutes.post(
 // ============================================
 schedulesRoutes.patch(
   "/:id",
-  zValidator("json", updateScheduleSchema as any),
+  validateJson(updateScheduleSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -169,6 +175,7 @@ schedulesRoutes.patch(
           body: JSON.stringify({
             intervalSeconds: body.intervalSeconds ?? existing.intervalSeconds,
             isActive: body.isActive ?? existing.isActive,
+            maxRetries: body.maxRetries ?? existing.maxRetries,
           }),
         })
       );
@@ -228,7 +235,7 @@ schedulesRoutes.get("/:id/logs", async (c) => {
   const db = createDb(c.env.DB);
   const userId = c.get("user").id;
   const id = c.req.param("id");
-  const limit = parseInt(c.req.query("limit") || "50");
+  const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 500);
 
   const schedule = await db
     .select()

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { createDb } from "@api-flow/db";
 import type { Env } from "../types";
+import { auth, configuredProviders } from "../lib/auth";
 import { getSession } from "../middleware/auth";
 
 /**
@@ -12,25 +12,23 @@ import { getSession } from "../middleware/auth";
  * - POST /auth/sign-in/social     — Social login (Google, Apple)
  * - GET  /auth/callback/:provider  — OAuth callback
  * - POST /auth/sign-out           — Sign out
- * - GET  /auth/session            — Get current session
- * - POST /auth/verify-email       — Email verification
- * - POST /auth/forgot-password    — Password reset request
- * - POST /auth/reset-password     — Password reset
+ * - GET  /auth/get-session        — Get current session
+ * - GET  /auth/verify-email       — Email verification
+ * - POST /auth/request-password-reset — Password reset email
+ * - POST /auth/reset-password     — Set a new password from the emailed token
+ * - POST /auth/send-verification-email — Resend the verification email
  */
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
-// Proxy all auth requests to Better Auth handler
-authRoutes.all("/*", async (c) => {
-  const { auth } = await import("../lib/auth");
-  const authInstance = auth(c.env);
-
-  // Better Auth expects a standard Request and returns a standard Response
-  return authInstance.handler(c.req.raw);
-});
-
 // ============================================
 // Custom auth endpoints
+// (registered before the catch-all so they are reachable)
 // ============================================
+
+// GET /auth/providers — Which social sign-in providers are configured
+authRoutes.get("/providers", (c) => {
+  return c.json({ data: configuredProviders(c.env) });
+});
 
 // GET /auth/me — Get the current user's profile
 authRoutes.get("/me", async (c) => {
@@ -48,4 +46,10 @@ authRoutes.get("/me", async (c) => {
       image: session.user.image,
     },
   });
+});
+
+// Proxy all other auth requests to the Better Auth handler
+authRoutes.on(["GET", "POST"], "/*", (c) => {
+  // Better Auth expects a standard Request and returns a standard Response
+  return auth(c.env).handler(c.req.raw);
 });

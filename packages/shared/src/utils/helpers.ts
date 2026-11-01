@@ -90,3 +90,44 @@ export function getStatusInfo(statusCode: number): {
     return { label: "Client Error", color: "#f59e0b", category: "clientError" };
   return { label: "Server Error", color: "#ef4444", category: "serverError" };
 }
+
+const STATUS_TEXTS: Record<number, string> = {
+  100: "Continue",
+  101: "Switching Protocols",
+  200: "OK",
+  201: "Created",
+  202: "Accepted",
+  204: "No Content",
+  206: "Partial Content",
+  301: "Moved Permanently",
+  302: "Found",
+  303: "See Other",
+  304: "Not Modified",
+  307: "Temporary Redirect",
+  308: "Permanent Redirect",
+  400: "Bad Request",
+  401: "Unauthorized",
+  403: "Forbidden",
+  404: "Not Found",
+  405: "Method Not Allowed",
+  406: "Not Acceptable",
+  408: "Request Timeout",
+  409: "Conflict",
+  410: "Gone",
+  413: "Payload Too Large",
+  415: "Unsupported Media Type",
+  422: "Unprocessable Entity",
+  429: "Too Many Requests",
+  500: "Internal Server Error",
+  501: "Not Implemented",
+  502: "Bad Gateway",
+  503: "Service Unavailable",
+  504: "Gateway Timeout",
+};
+
+/**
+ * Get the standard HTTP reason phrase for a status code.
+ */
+export function getStatusText(code: number): string {
+  return STATUS_TEXTS[code] || "Unknown";
+}

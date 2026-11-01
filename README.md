@@ -32,6 +32,35 @@ api-flow/
 
 ---
 
+## Features
+
+- **Test any API without an account** — GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS, headers, query params, bodies, Bearer/Basic/API-key auth, timing breakdown.
+- **Multiple request tabs** — open as many requests as you like (guests too); tabs are kept in the browser across reloads and sign-in.
+- **Resizable workspace** — drag to resize the sidebar and the request/response split, switch stacked ↔ side-by-side, hide the sidebar (`Ctrl+B`) or response panel (`Ctrl+J`).
+- **Response viewer** — Pretty (syntax-highlighted), Raw and Preview (collapsible JSON/XML tree, sandboxed HTML render) with JSON / XML / HTML / JavaScript / CSS / Plain Text formats, wrap, copy and download.
+- **Themes** — System, Dark, Light and Ocean (deep-teal IDE style).
+- **Save requests** (account required — guests are asked to sign in / sign up) — auth credentials are only stored if you opt in when saving.
+- **Import & backup** — import Postman Collection v2.0/v2.1, Postman environments, Postman data exports and API Flow backups; download a full JSON backup of collections, requests, environments and monitors.
+- **Endpoint monitors** (`/monitors`, account required) — add many endpoints (single or bulk paste), give each its own check interval (10 s – 24 h), expected status and timeout, then run heartbeat checks for all of them from one screen. View uptime, response times and a log table; download logs as CSV/JSON or clear them.
+  Checks are scheduled by the browser while the Monitors page is open and executed in parallel by the API.
+
+## Security Model
+
+| Area | Protection |
+|---|---|
+| Guests | Can use `/proxy/execute` only; rate-limited per IP (30/min). Nothing is stored. |
+| Signed-in users | Every resource query is scoped to the session user (incl. environment variables, folders, monitors). |
+| Proxy / monitors | SSRF guard: http(s) only, blocks localhost, private/link-local/metadata IPs, re-validates every redirect, 5 MB response cap. |
+| CORS / CSRF | Exact origin allowlist (`NEXT_PUBLIC_APP_URL` + `ALLOWED_ORIGINS`), shared with Better Auth trusted origins. |
+| Auth | Email verification required, sign-in/sign-up rate limits, secure cookies in production. |
+| Headers | Strict CSP + security headers on the web app; `secureHeaders` + 2 MB body limit on the API. Production errors never leak stack traces. |
+
+> In production the web app (`*.pages.dev`) and API (`*.workers.dev`) are different sites, so the session
+> cookie is `SameSite=None; Secure; Partitioned`. For the most reliable login across browsers, serve both
+> from one domain (e.g. `app.example.com` + `api.example.com`).
+
+---
+
 ## Quickstart (Local Development)
 
 ### 1. Prerequisites
@@ -46,9 +75,13 @@ api-flow/
 # Clone the repository and install dependencies
 pnpm install
 
-# Copy environment variables template
+# Copy environment variables templates
 cp .env.example .env
+cp apps/api/.dev.vars.example apps/api/.dev.vars   # API secrets for `wrangler dev`
 ```
+
+> Wrangler reads Worker secrets from `apps/api/.dev.vars`, not the root `.env`.
+> Set `BETTER_AUTH_SECRET` there to a random string of 32+ characters.
 
 ### 3. Generate and Apply Local Database Migrations
 
@@ -56,16 +89,24 @@ cp .env.example .env
 # Generate SQL migration from Drizzle schema definitions
 pnpm db:generate
 
-# Apply migrations to your local Cloudflare D1 SQLite database instance
+# Apply migrations to the API's local Cloudflare D1 database (apps/api/.wrangler)
 pnpm db:migrate
 ```
 
 ### 4. Run Development Servers
 
 ```bash
-# Run both Frontend (http://localhost:3000) and API Worker (http://localhost:8787)
+# Run both Frontend (http://localhost:3100) and API Worker (http://localhost:8787)
 pnpm dev
 ```
+
+The web app runs on port **3100** (to avoid clashing with other apps on 3000). To change it,
+edit the `dev` script in `apps/web/package.json` and add the new origin to `ALLOWED_ORIGINS`
+(or `NEXT_PUBLIC_APP_URL`) in `apps/api/.dev.vars`.
+
+`pnpm --filter @api-flow/api dev` runs the Worker with `APP_ENV=development`, which allows
+`localhost` origins, lets the proxy reach `localhost`/private-network APIs, and logs email
+verification links to the console (no email provider is wired up yet).
 
 To run apps individually:
 ```bash
@@ -165,6 +206,9 @@ npx wrangler secret put BETTER_AUTH_SECRET
 # Better Auth Base URL
 npx wrangler secret put BETTER_AUTH_URL
 
+# Web app origin (used for CORS + trusted origins). Extra origins: ALLOWED_ORIGINS (comma-separated)
+npx wrangler secret put NEXT_PUBLIC_APP_URL
+
 # Google OAuth
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
@@ -211,20 +255,10 @@ pnpm --filter @api-flow/web deploy
 
 ---
 
-## Authentication Setup (Google, Apple & Email Verification)
+## Authentication Setup (Google, Apple, Email & Sessions)
 
-### Google OAuth Configuration
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) -> **APIs & Services** -> **Credentials**.
-2. Create an **OAuth 2.0 Client ID** (Web application).
-3. Set **Authorized JavaScript origins**: `http://localhost:3000`, `https://<your-app>.pages.dev`.
-4. Set **Authorized redirect URIs**: `http://localhost:8787/auth/callback/google`, `https://<api-worker>.workers.dev/auth/callback/google`.
-5. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your environment variables / Cloudflare secrets.
-
-### Apple Sign-In Configuration
-1. Login to [Apple Developer Portal](https://developer.apple.com/).
-2. Create an **App ID** and enable **Sign In with Apple**.
-3. Create a **Service ID** with your domain and set Return URL: `https://<api-worker>.workers.dev/auth/callback/apple`.
-4. Add `APPLE_CLIENT_ID` and `APPLE_CLIENT_SECRET` to your environment variables / Cloudflare secrets.
+Step-by-step instructions for Google OAuth, Sign in with Apple, transactional email via
+[Resend](https://resend.com) and session behaviour are in **[docs/SETUP-AUTH-EMAIL.md](docs/SETUP-AUTH-EMAIL.md)**.
 
 ---
 

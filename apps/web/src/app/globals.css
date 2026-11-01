@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +5,124 @@
 /* ============================================
    Base Styles — Premium Dark Theme
    ============================================ */
+
+/* ============================================
+   Theme tokens (RGB channels — see tailwind.config.js)
+   dark (default) · light · ocean (deep teal, IDE-style)
+   The active theme is set on <html data-theme> before first paint
+   by the inline script in app/layout.tsx.
+   ============================================ */
+
+:root,
+[data-theme="dark"] {
+  --surface-0: 10 10 15;
+  --surface-1: 18 18 26;
+  --surface-2: 26 26 37;
+  --surface-3: 34 34 48;
+  --surface-4: 42 42 59;
+  --surface-5: 50 50 70;
+
+  --gray-50: 249 250 251;
+  --gray-100: 243 244 246;
+  --gray-200: 229 231 235;
+  --gray-300: 209 213 219;
+  --gray-400: 156 163 175;
+  --gray-500: 107 114 128;
+  --gray-600: 75 85 99;
+  --gray-700: 55 65 81;
+  --gray-800: 31 41 55;
+  --gray-900: 17 24 39;
+  --gray-950: 3 7 18;
+
+  --brand-50: 240 253 250;
+  --brand-100: 204 251 241;
+  --brand-200: 153 246 228;
+  --brand-300: 94 234 212;
+  --brand-400: 45 212 191;
+  --brand-500: 20 184 166;
+  --brand-600: 13 148 136;
+  --brand-700: 15 118 110;
+  --brand-800: 17 94 89;
+  --brand-900: 19 78 74;
+  --brand-950: 4 47 46;
+
+  --line: 255 255 255;
+  --scheme: dark;
+}
+
+[data-theme="light"] {
+  --surface-0: 243 245 248;
+  --surface-1: 255 255 255;
+  --surface-2: 249 250 252;
+  --surface-3: 236 239 243;
+  --surface-4: 225 229 235;
+  --surface-5: 208 214 222;
+
+  /* Inverted neutral scale: gray-100 is the strongest text colour */
+  --gray-50: 3 7 18;
+  --gray-100: 17 24 39;
+  --gray-200: 31 41 55;
+  --gray-300: 55 65 81;
+  --gray-400: 75 85 99;
+  --gray-500: 100 108 122;
+  --gray-600: 140 147 160;
+  --gray-700: 190 196 205;
+  --gray-800: 222 226 232;
+  --gray-900: 238 241 245;
+  --gray-950: 249 250 251;
+
+  /* Darker accents for contrast on white */
+  --brand-50: 240 253 250;
+  --brand-100: 204 251 241;
+  --brand-200: 17 94 89;
+  --brand-300: 15 118 110;
+  --brand-400: 13 148 136;
+  --brand-500: 20 184 166;
+  --brand-600: 13 148 136;
+  --brand-700: 15 118 110;
+  --brand-800: 17 94 89;
+  --brand-900: 19 78 74;
+  --brand-950: 204 251 241;
+
+  --line: 15 23 42;
+  --scheme: light;
+}
+
+[data-theme="ocean"] {
+  --surface-0: 0 30 39;
+  --surface-1: 0 40 51;
+  --surface-2: 4 51 63;
+  --surface-3: 9 63 77;
+  --surface-4: 15 77 93;
+  --surface-5: 22 93 111;
+
+  --gray-50: 240 248 248;
+  --gray-100: 226 238 238;
+  --gray-200: 204 223 225;
+  --gray-300: 176 201 205;
+  --gray-400: 133 165 171;
+  --gray-500: 103 136 143;
+  --gray-600: 78 110 118;
+  --gray-700: 52 84 93;
+  --gray-800: 28 60 70;
+  --gray-900: 12 44 54;
+  --gray-950: 4 30 38;
+
+  --brand-50: 236 254 255;
+  --brand-100: 207 250 254;
+  --brand-200: 165 243 252;
+  --brand-300: 103 232 249;
+  --brand-400: 34 211 238;
+  --brand-500: 6 182 212;
+  --brand-600: 8 145 178;
+  --brand-700: 14 116 144;
+  --brand-800: 21 94 117;
+  --brand-900: 22 78 99;
+  --brand-950: 8 51 68;
+
+  --line: 186 230 240;
+  --scheme: dark;
+}
 
 @layer base {
   :root {
@@ -36,9 +152,39 @@
     @apply border-[hsl(var(--border))];
   }
 
+  html {
+    color-scheme: var(--scheme);
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-surface-0 text-gray-100 antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Visible keyboard focus everywhere */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-0;
+  }
+
+  /* Prevent iOS zoom on input focus (needs >= 16px font on small screens) */
+  @media (max-width: 639px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   /* Custom scrollbar */
@@ -67,18 +213,18 @@
 @layer components {
   /* Glass morphism card */
   .glass-card {
-    @apply bg-surface-1/80 backdrop-blur-md border border-white/5 rounded-xl;
+    @apply bg-surface-1/80 backdrop-blur-md border border-line/5 rounded-xl;
   }
 
   /* Glass morphism panel */
   .glass-panel {
-    @apply bg-surface-2/60 backdrop-blur-sm border border-white/5 rounded-lg;
+    @apply bg-surface-2/60 backdrop-blur-sm border border-line/5 rounded-lg;
   }
 
   /* Glow effect for primary elements */
   .glow-brand {
-    box-shadow: 0 0 20px rgba(20, 184, 166, 0.15),
-                0 0 60px rgba(20, 184, 166, 0.05);
+    box-shadow: 0 0 20px rgb(var(--brand-500) / 0.15),
+                0 0 60px rgb(var(--brand-500) / 0.05);
   }
 
   /* Status dot indicator */
@@ -105,7 +251,7 @@
 
   /* Input field styling */
   .input-field {
-    @apply bg-surface-2 border border-white/10 rounded-lg px-3 py-2
+    @apply bg-surface-2 border border-line/10 rounded-lg px-3 py-2
            text-sm text-gray-200 placeholder-gray-500
            focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
            transition-all duration-200;
@@ -122,8 +268,8 @@
 
   .btn-secondary {
     @apply bg-surface-3 hover:bg-surface-4 text-gray-200 font-medium px-4 py-2
-           rounded-lg border border-white/5 transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-white/10
+           rounded-lg border border-line/5 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-line/10
            active:scale-[0.98];
   }
 
@@ -140,7 +286,7 @@
 
   /* Tab button */
   .tab-button {
-    @apply px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-gray-200
+    @apply px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-gray-200 whitespace-nowrap
            border-b-2 border-transparent hover:border-gray-600
            transition-all duration-200;
   }
@@ -187,7 +333,87 @@
     @apply bg-gradient-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent;
   }
 
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .gradient-border {
     border-image: linear-gradient(to right, #14b8a6, #06b6d4) 1;
   }
 }
+
+/* ============================================
+   Syntax colours (response viewer)
+   ============================================ */
+
+:root,
+[data-theme="dark"] {
+  --tok-key: 125 211 252;
+  --tok-string: 134 239 172;
+  --tok-number: 251 191 36;
+  --tok-bool: 192 132 252;
+  --tok-tag: 94 234 212;
+  --tok-attr: 147 197 253;
+  --tok-comment: 107 114 128;
+  --tok-punct: 156 163 175;
+}
+[data-theme="light"] {
+  --tok-key: 3 105 161;
+  --tok-string: 21 128 61;
+  --tok-number: 180 83 9;
+  --tok-bool: 126 34 206;
+  --tok-tag: 15 118 110;
+  --tok-attr: 29 78 216;
+  --tok-comment: 120 128 140;
+  --tok-punct: 100 108 122;
+}
+[data-theme="ocean"] {
+  /* Solarized-inspired accents */
+  --tok-key: 38 139 210;
+  --tok-string: 133 153 0;
+  --tok-number: 203 75 22;
+  --tok-bool: 211 54 130;
+  --tok-tag: 42 161 152;
+  --tok-attr: 181 137 0;
+  --tok-comment: 88 110 117;
+  --tok-punct: 147 161 161;
+}
+.tok-key { color: rgb(var(--tok-key)); }
+.tok-string { color: rgb(var(--tok-string)); }
+.tok-number { color: rgb(var(--tok-number)); }
+.tok-bool { color: rgb(var(--tok-bool)); }
+.tok-tag { color: rgb(var(--tok-tag)); }
+.tok-attr { color: rgb(var(--tok-attr)); }
+.tok-comment { color: rgb(var(--tok-comment)); font-style: italic; }
+.tok-punct { color: rgb(var(--tok-punct)); }
+
+/* ============================================
+   Light theme adjustments
+   Hairlines need more weight on white, and the pale status
+   tints used for text on dark backgrounds need darker shades.
+   ============================================ */
+
+[data-theme="light"] .border-line\/5,
+[data-theme="light"] .divide-line\/5 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(var(--line) / 0.1);
+}
+[data-theme="light"] .text-red-300,
+[data-theme="light"] .text-red-400 { color: rgb(185 28 28); }
+[data-theme="light"] .text-amber-200,
+[data-theme="light"] .text-amber-300,
+[data-theme="light"] .text-amber-400 { color: rgb(161 98 7); }
+[data-theme="light"] .text-emerald-300,
+[data-theme="light"] .text-emerald-400,
+[data-theme="light"] .text-green-300,
+[data-theme="light"] .text-green-400 { color: rgb(21 128 61); }
+[data-theme="light"] .text-blue-300,
+[data-theme="light"] .text-blue-400 { color: rgb(29 78 216); }
+[data-theme="light"] .text-cyan-300,
+[data-theme="light"] .text-cyan-400 { color: rgb(14 116 144); }
+[data-theme="light"] .text-purple-300,
+[data-theme="light"] .text-purple-400 { color: rgb(126 34 206); }
+[data-theme="light"] .glass-card { box-shadow: 0 1px 3px rgb(15 23 42 / 0.06); }

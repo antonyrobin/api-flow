@@ -1,0 +1,1 @@
+ALTER TABLE `monitors` ADD `run_in_background` integer DEFAULT false NOT NULL;

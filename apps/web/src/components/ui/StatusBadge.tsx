@@ -48,7 +48,7 @@ export function ResponseMeta({
   className,
 }: ResponseMetaProps) {
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
       <StatusBadge statusCode={statusCode} />
       <span className="text-sm text-gray-400 font-mono">
         {formatDuration(timeMs)}

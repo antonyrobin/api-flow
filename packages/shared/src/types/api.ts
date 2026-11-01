@@ -61,6 +61,8 @@ export interface ApiResponse {
   headers: Record<string, string>;
   body: string;
   bodySize: number;
+  /** True when the body exceeded the proxy size cap and was cut off */
+  truncated?: boolean;
   timing: RequestTiming;
   timestamp: string;
 }
@@ -162,5 +164,39 @@ export interface RequestHistoryEntry {
   responseSizeBytes?: number;
   timing: RequestTiming;
   errorMessage?: string;
+  createdAt: string;
+}
+
+// ============================================
+// Monitor (health check) Types
+// ============================================
+
+export interface Monitor {
+  id: string;
+  name: string;
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string | null;
+  intervalSeconds: number;
+  timeoutMs: number;
+  expectedStatus: number | null;
+  isEnabled: boolean;
+  /** Checked server-side on its interval, even while the dashboard is closed */
+  runInBackground: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastCheck?: MonitorLog | null;
+}
+
+export interface MonitorLog {
+  id: string;
+  monitorId: string;
+  monitorName?: string;
+  url?: string;
+  statusCode: number | null;
+  responseTimeMs: number | null;
+  isSuccess: boolean;
+  errorMessage: string | null;
   createdAt: string;
 }

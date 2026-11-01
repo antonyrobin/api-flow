@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { eq } from "drizzle-orm";
+import { validateJson } from "../lib/validate";
+import { eq, and, inArray } from "drizzle-orm";
 import { createDb, collections, collectionFolders } from "@api-flow/db";
 import {
   createCollectionSchema,
@@ -33,7 +33,21 @@ collectionsRoutes.get("/", async (c) => {
     .where(eq(collections.userId, userId))
     .orderBy(collections.sortOrder);
 
-  return c.json({ data: result });
+  // Folders for all collections in one query (used by the sidebar tree)
+  const folders = result.length
+    ? await db
+        .select()
+        .from(collectionFolders)
+        .where(inArray(collectionFolders.collectionId, result.map((r) => r.id)))
+        .orderBy(collectionFolders.sortOrder)
+    : [];
+
+  return c.json({
+    data: result.map((col) => ({
+      ...col,
+      folders: folders.filter((f) => f.collectionId === col.id),
+    })),
+  });
 });
 
 // ============================================
@@ -69,7 +83,7 @@ collectionsRoutes.get("/:id", async (c) => {
 // ============================================
 collectionsRoutes.post(
   "/",
-  zValidator("json", createCollectionSchema as any),
+  validateJson(createCollectionSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -99,7 +113,7 @@ collectionsRoutes.post(
 // ============================================
 collectionsRoutes.patch(
   "/:id",
-  zValidator("json", updateCollectionSchema as any),
+  validateJson(updateCollectionSchema),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -159,7 +173,7 @@ collectionsRoutes.delete("/:id", async (c) => {
 // ============================================
 collectionsRoutes.post(
   "/:id/folders",
-  zValidator("json", createFolderSchema.omit({ collectionId: true }) as any),
+  validateJson(createFolderSchema.omit({ collectionId: true })),
   async (c) => {
     const db = createDb(c.env.DB);
     const userId = c.get("user").id;
@@ -176,6 +190,22 @@ collectionsRoutes.post(
 
     if (!collection || collection.userId !== userId) {
       return c.json({ error: { message: "Collection not found" } }, 404);
+    }
+
+    if (body.parentFolderId) {
+      const parent = await db
+        .select({ id: collectionFolders.id })
+        .from(collectionFolders)
+        .where(
+          and(
+            eq(collectionFolders.id, body.parentFolderId),
+            eq(collectionFolders.collectionId, collectionId)
+          )
+        )
+        .get();
+      if (!parent) {
+        return c.json({ error: { message: "Parent folder not found" } }, 400);
+      }
     }
 
     const newFolder = {

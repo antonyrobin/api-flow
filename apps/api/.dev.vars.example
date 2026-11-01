@@ -1,0 +1,19 @@
+# Local secrets for `wrangler dev` — copy to apps/api/.dev.vars (git-ignored)
+BETTER_AUTH_SECRET=replace-with-a-random-string-of-at-least-32-chars
+# Public URL of THIS API (OAuth callbacks go to {BETTER_AUTH_URL}/auth/callback/{provider})
+BETTER_AUTH_URL=http://localhost:8787
+NEXT_PUBLIC_APP_URL=http://localhost:3100
+
+# Optional OAuth providers (leave empty to disable — the buttons are hidden)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Apple: Services ID (e.g. com.yourcompany.apiflow.web) + the generated client-secret JWT
+APPLE_CLIENT_ID=
+APPLE_CLIENT_SECRET=
+
+# Transactional email via Resend (https://resend.com/api-keys)
+# Without a key, verification / reset links are printed to this terminal instead.
+RESEND_API_KEY=
+# Sender on a domain verified in Resend. Leave empty to use onboarding@resend.dev
+# (Resend's test sender, which only delivers to your own Resend account email).
+EMAIL_FROM=

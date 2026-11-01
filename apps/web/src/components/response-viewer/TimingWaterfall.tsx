@@ -115,7 +115,7 @@ export function TimingWaterfall({ timing, className }: TimingWaterfallProps) {
       </div>
 
       {/* Summary Legend */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-white/5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-line/5">
         {bars.map((bar) => (
           <div
             key={bar.key}

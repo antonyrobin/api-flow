@@ -71,7 +71,7 @@ export function BodyEditor() {
             rows={12}
             className={cn(
               "w-full px-4 py-3 rounded-lg font-mono text-sm leading-relaxed",
-              "bg-surface-2 border border-white/10",
+              "bg-surface-2 border border-line/10",
               "text-gray-200 placeholder-gray-600",
               "focus:outline-none focus:ring-2 focus:ring-brand-500/40",
               "resize-y transition-all duration-200"

@@ -1,5 +1,13 @@
 import typography from "@tailwindcss/typography";
 
+/**
+ * Theme-aware color scale backed by CSS variables (space-separated RGB channels),
+ * so opacity modifiers like `bg-surface-2/60` keep working. Values per theme live
+ * in src/app/globals.css under [data-theme="…"].
+ */
+const scale = (name, steps) =>
+  Object.fromEntries(steps.map((step) => [step, `rgb(var(--${name}-${step}) / <alpha-value>)`]));
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: "class",
@@ -8,29 +16,18 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        // Large desktop / ultrawide
+        "3xl": "1920px",
+      },
       colors: {
         // Custom design system colors
-        brand: {
-          50: "#f0fdfa",
-          100: "#ccfbf1",
-          200: "#99f6e4",
-          300: "#5eead4",
-          400: "#2dd4bf",
-          500: "#14b8a6",
-          600: "#0d9488",
-          700: "#0f766e",
-          800: "#115e59",
-          900: "#134e4a",
-          950: "#042f2e",
-        },
-        surface: {
-          0: "#0a0a0f",
-          1: "#12121a",
-          2: "#1a1a25",
-          3: "#222230",
-          4: "#2a2a3b",
-          5: "#323246",
-        },
+        brand: scale("brand", [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+        surface: scale("surface", [0, 1, 2, 3, 4, 5]),
+        // Text/neutral scale: light-on-dark in dark themes, inverted in the light theme
+        gray: scale("gray", [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+        // Hairlines and subtle overlays (white in dark themes, ink in light)
+        line: "rgb(var(--line) / <alpha-value>)",
         // HTTP Method colors
         method: {
           get: "#22c55e",
@@ -51,8 +48,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "JetBrains Mono", "Fira Code", "monospace"],
       },
       fontSize: {
         "2xs": "0.625rem",
@@ -69,6 +66,7 @@ export default {
         "slide-up": "slideUp 0.3s ease-out",
         "slide-down": "slideDown 0.3s ease-out",
         "scale-in": "scaleIn 0.2s ease-out",
+        "slide-in-left": "slideInLeft 0.25s ease-out",
         "pulse-dot": "pulseDot 2s ease-in-out infinite",
       },
       keyframes: {
@@ -83,6 +81,10 @@ export default {
         slideDown: {
           "0%": { transform: "translateY(-8px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        slideInLeft: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(0)" },
         },
         scaleIn: {
           "0%": { transform: "scale(0.95)", opacity: "0" },
