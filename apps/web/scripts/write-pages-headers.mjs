@@ -23,7 +23,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 if (!apiUrl || /localhost|127\.0\.0\.1/.test(apiUrl)) {
   console.error(
     "\n✖ NEXT_PUBLIC_API_URL is not set to your deployed API (got: " + (apiUrl || "nothing") + ").\n" +
-      "  Create apps/web/.env.production.local (see .env.production.example) and rebuild.\n"
+      "  Set it in apps/web/.env.production (committed, read by Cloudflare Git builds) and rebuild.\n"
   );
   process.exit(1);
 }

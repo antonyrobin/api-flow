@@ -72,7 +72,11 @@
   // Environment variables (secrets go in `wrangler secret put` / .dev.vars)
   // APP_ENV defaults to production; `pnpm dev` overrides it with --var APP_ENV:development
   "vars": {
-    "APP_ENV": "production"
+    "APP_ENV": "production",
+    // Public web app origin — drives CORS and Better Auth trusted origins.
+    // Extra origins (e.g. the *.pages.dev URL) can go in ALLOWED_ORIGINS, comma-separated.
+    "NEXT_PUBLIC_APP_URL": "https://apiflow.redexoans.com",
+    "ALLOWED_ORIGINS": "https://api-flow-web.pages.dev"
   },
   // Dev server config
   "dev": {

@@ -228,8 +228,7 @@ Runs `wrangler d1 migrations apply api-flow-db --remote`. Run it whenever `packa
 cd apps/api
 
 npx wrangler secret put BETTER_AUTH_SECRET     # random string, 32+ chars
-npx wrangler secret put BETTER_AUTH_URL        # this Worker's URL, e.g. https://api-flow-api.<you>.workers.dev
-npx wrangler secret put NEXT_PUBLIC_APP_URL    # the web app URL, e.g. https://api-flow-web.pages.dev
+npx wrangler secret put BETTER_AUTH_URL        # this Worker's public URL, e.g. https://apiflowrest.redexoans.com
 
 # Google sign-in
 npx wrangler secret put GOOGLE_CLIENT_ID
@@ -242,7 +241,19 @@ npx wrangler secret put EMAIL_FROM             # e.g. API Flow <noreply@yourdoma
 cd ../..
 ```
 
-Optional: `ALLOWED_ORIGINS` (extra comma-separated web origins, e.g. a custom domain).
+The web app origin is **not a secret** — it lives in `apps/api/wrangler.jsonc` under `vars` and deploys with
+the code:
+
+```jsonc
+"vars": {
+  "APP_ENV": "production",
+  "NEXT_PUBLIC_APP_URL": "https://apiflow.redexoans.com",   // web origin: CORS + auth trusted origin
+  "ALLOWED_ORIGINS": "https://api-flow-web.pages.dev"        // extra origins, comma-separated
+}
+```
+
+If this origin is wrong or missing, the browser blocks every API call (no `Access-Control-Allow-Origin`).
+Don't also create a secret with the same name — Wrangler rejects duplicate names.
 Sign in with Apple is **disabled**; to enable it later set `APPLE_SIGNIN_ENABLED=true` plus
 `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` (see the auth guide below). List what's set with
 `npx wrangler secret list` (from `apps/api`).
@@ -258,23 +269,19 @@ Check it: opening `https://<worker-url>/` returns `{"name":"API Flow","status":"
 
 ### 3. Deploy the web app (`apps/web`)
 
-#### A. Point the build at your API (once)
+#### A. Point the build at your API
 
-`NEXT_PUBLIC_*` values are baked into the static files at build time:
-
-```bash
-# Windows (PowerShell)
-Copy-Item apps/web/.env.production.example apps/web/.env.production.local
-# macOS / Linux
-cp apps/web/.env.production.example apps/web/.env.production.local
-```
-
-Edit `apps/web/.env.production.local` (git-ignored):
+`NEXT_PUBLIC_*` values are baked into the static files **at build time** (they are not runtime secrets,
+so `wrangler pages secret put` does not apply). They are committed in `apps/web/.env.production`:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api-flow-api.<your-subdomain>.workers.dev
-NEXT_PUBLIC_APP_URL=https://api-flow-web.pages.dev
+NEXT_PUBLIC_API_URL=https://apiflowrest.redexoans.com
+NEXT_PUBLIC_APP_URL=https://apiflow.redexoans.com
 ```
+
+Both the local `pnpm deploy:web` and Cloudflare's Git builds read this file. To override it, use
+`apps/web/.env.production.local` (local, git-ignored) or a Pages **build** environment variable
+(Pages project → Settings → Variables and Secrets, type *Text*) with the same name.
 
 #### B. Deploy
 
@@ -298,7 +305,7 @@ message if `NEXT_PUBLIC_API_URL` is missing or still points at localhost.
    - **Root directory**: `apps/web`
    - **Build command**: `pnpm run pages:build`
    - **Build output directory**: `out`
-3. **Environment variables** (Production): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL` (as above).
+3. Environment variables: none needed — the build reads `apps/web/.env.production` from the repo.
 4. Save and Deploy. Every push to the production branch redeploys the web app
    (the API still deploys with `pnpm deploy:api`).
 
@@ -315,8 +322,10 @@ message if `NEXT_PUBLIC_API_URL` is missing or still points at localhost.
 |---|---|
 | `ERR_PNPM_INVALID_DEPLOY_TARGET  This command requires one parameter` | Use `pnpm deploy:api` / `pnpm deploy:web` (or `pnpm --filter <pkg> run deploy`). |
 | `spawn pnpm ENOENT` from `@cloudflare/next-on-pages` | Old build pipeline (not Windows-compatible). Pull the latest code — the web app now builds with plain `next build`. |
-| Sign-in works locally but not in production / CORS errors | `NEXT_PUBLIC_APP_URL` secret on the Worker must exactly match the web origin (no trailing slash). Extra domains go in `ALLOWED_ORIGINS`. |
-| Web app calls `localhost:8787` in production | `apps/web/.env.production.local` missing or wrong — fix it and run `pnpm deploy:web`. |
+| Sign-in works locally but not in production / CORS errors | `NEXT_PUBLIC_APP_URL` in `apps/api/wrangler.jsonc` → `vars` must exactly match the web origin (no trailing slash). Extra domains go in `ALLOWED_ORIGINS`. Redeploy with `pnpm deploy:api`. |
+| `✖ NEXT_PUBLIC_API_URL is not set to your deployed API` in the Pages build | The build can't see the API URL. Make sure `apps/web/.env.production` is committed and pushed (a git-ignored `.env.production.local` never reaches Cloudflare). |
+| `It looks like you've run a Workers-specific command in a Pages project` | Run `wrangler secret put` from `apps/api` (the Worker), not `apps/web`. The web app needs no secrets. |
+| Web app calls `localhost:8787` in production | `apps/web/.env.production` missing or wrong — fix it and redeploy the web app. |
 | "Provider not found" on social login | That provider's secrets aren't set on the Worker (`npx wrangler secret list`). |
 
 ---
