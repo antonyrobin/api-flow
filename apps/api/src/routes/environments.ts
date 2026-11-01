@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { validateJson } from "../lib/validate";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { createDb, environments, environmentVariables, type Database } from "@api-flow/db";
 import {
   createEnvironmentSchema,
@@ -40,25 +40,25 @@ environmentsRoutes.get("/", async (c) => {
     .from(environments)
     .where(eq(environments.userId, userId));
 
-  // Fetch variables for each environment
-  const result = await Promise.all(
-    envs.map(async (env) => {
-      const vars = await db
+  // Variables for all environments in one query (instead of one per environment)
+  const vars = envs.length
+    ? await db
         .select()
         .from(environmentVariables)
-        .where(eq(environmentVariables.environmentId, env.id))
-        .orderBy(environmentVariables.sortOrder);
+        .where(inArray(environmentVariables.environmentId, envs.map((e) => e.id)))
+        .orderBy(environmentVariables.sortOrder)
+    : [];
 
-      return {
-        ...env,
-        variables: vars.map((v) => ({
-          ...v,
-          // Mask secret values in list view
-          value: v.isSecret ? "••••••••" : v.value,
-        })),
-      };
-    })
-  );
+  const result = envs.map((env) => ({
+    ...env,
+    variables: vars
+      .filter((v) => v.environmentId === env.id)
+      .map((v) => ({
+        ...v,
+        // Mask secret values in list view
+        value: v.isSecret ? "••••••••" : v.value,
+      })),
+  }));
 
   return c.json({ data: result });
 });

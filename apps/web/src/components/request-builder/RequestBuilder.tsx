@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useRequestStore } from "@/stores/request-store";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { MethodBadge } from "@/components/ui/MethodBadge";
@@ -24,7 +25,9 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function RequestBuilder() {
-  const { activeRequest, savedRequestId, isExecuting, setMethod, setUrl } = useRequestStore();
+  const { activeRequest, savedRequestId, isExecuting, setMethod, setUrl } = useRequestStore(
+    useShallow((s) => ({ activeRequest: s.activeRequest, savedRequestId: s.savedRequestId, isExecuting: s.isExecuting, setMethod: s.setMethod, setUrl: s.setUrl }))
+  );
 
   const { execute } = useApiRequest();
   const [activeTab, setActiveTab] = useState<TabId>("params");

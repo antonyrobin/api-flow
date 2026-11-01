@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -19,8 +19,17 @@ import { cn } from "@/lib/utils";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Logo } from "@/components/ui/Logo";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useShallow } from "zustand/react/shallow";
 import { useLayoutStore, SIDEBAR_DEFAULT } from "@/stores/layout-store";
 import { ThemeMenu } from "./ThemeMenu";
+
+/**
+ * Lets sidebar content dismiss the mobile drawer, e.g. after a request is picked
+ * so the request details become visible. A no-op on desktop.
+ */
+const SidebarDrawerContext = createContext<{ closeDrawer: () => void }>({ closeDrawer: () => {} });
+export const useSidebarDrawer = () => useContext(SidebarDrawerContext);
 
 const NAV = [
   { href: "/", label: "Workspace", icon: Send },
@@ -44,8 +53,21 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } = useLayoutStore();
+  const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } = useLayoutStore(
+    useShallow((s) => ({
+      sidebarOpen: s.sidebarOpen,
+      sidebarWidth: s.sidebarWidth,
+      toggleSidebar: s.toggleSidebar,
+      setSidebarWidth: s.setSidebarWidth,
+    }))
+  );
   const shellRef = useRef<HTMLDivElement>(null);
+  // The desktop sidebar is CSS-hidden on small screens; don't also mount it there
+  // (it would duplicate the whole saved-requests tree next to the drawer).
+  // Server snapshot is false, so the static HTML still includes it for desktops.
+  const isMobile = useMediaQuery("(max-width: 1023.98px)");
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const drawerContext = useMemo(() => ({ closeDrawer }), [closeDrawer]);
 
   // Restore the saved panel layout after hydration
   useEffect(() => {
@@ -76,6 +98,7 @@ export function AppShell({
   }, [drawerOpen]);
 
   return (
+    <SidebarDrawerContext.Provider value={drawerContext}>
     <div className="flex flex-col h-dvh bg-surface-0">
       <a
         href="#main-content"
@@ -143,7 +166,7 @@ export function AppShell({
 
       <div ref={shellRef} className="flex flex-1 min-h-0">
         {/* ===== Sidebar (desktop) ===== */}
-        {sidebar && sidebarOpen && (
+        {sidebar && sidebarOpen && !isMobile && (
           <>
             <aside
               style={{ width: sidebarWidth }}
@@ -191,6 +214,7 @@ export function AppShell({
         </main>
       </div>
     </div>
+    </SidebarDrawerContext.Provider>
   );
 }
 

@@ -83,6 +83,18 @@ export function useDeleteCollection() {
   });
 }
 
+/** Where a request is saved: an existing collection, or a new one created first */
+export type CollectionTarget = { collectionId: string } | { newCollectionName: string };
+
+async function resolveCollection(target: CollectionTarget): Promise<{ id: string; created: boolean }> {
+  if ("collectionId" in target) return { id: target.collectionId, created: false };
+  const result = await apiFetch<{ data: { id: string } }>("/collections", {
+    method: "POST",
+    body: JSON.stringify({ name: target.newCollectionName }),
+  });
+  return { id: result.data.id, created: true };
+}
+
 export function useSaveRequest() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -90,12 +102,17 @@ export function useSaveRequest() {
       id,
       request,
       includeCredentials,
+      target,
     }: {
       id: string | null;
       request: ApiRequest;
       includeCredentials: boolean;
+      target: CollectionTarget;
     }) => {
+      const collection = await resolveCollection(target);
+      if (collection.created) queryClient.invalidateQueries({ queryKey: COLLECTIONS_KEY });
       const payload = {
+        collectionId: collection.id,
         name: request.name,
         method: request.method,
         url: request.url,
@@ -114,6 +131,25 @@ export function useSaveRequest() {
       return result.data.id;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: SAVED_REQUESTS_KEY }),
+  });
+}
+
+/** Add (or move) a saved request to a collection */
+export function useMoveRequestToCollection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, target }: { id: string; target: CollectionTarget }) => {
+      const collection = await resolveCollection(target);
+      await apiFetch(`/requests/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ collectionId: collection.id, folderId: null }),
+      });
+      return collection.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: SAVED_REQUESTS_KEY });
+    },
   });
 }
 

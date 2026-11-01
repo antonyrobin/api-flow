@@ -4,23 +4,40 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
+import { useShallow } from "zustand/react/shallow";
 import { useRequestStore } from "@/stores/request-store";
-import { useSaveRequest } from "@/hooks/use-saved-requests";
+import { useCollections, useSaveRequest, useSavedRequests } from "@/hooks/use-saved-requests";
 import { Dialog } from "@/components/ui/Dialog";
+import { CollectionPicker, choiceToTarget, initialChoice, type CollectionChoice } from "./CollectionPicker";
 
 export function SaveRequestDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { activeRequest, savedRequestId, setName, setSavedRequestId } = useRequestStore();
+  const { activeRequest, savedRequestId, setName, setSavedRequestId } = useRequestStore(
+    useShallow((s) => ({
+      activeRequest: s.activeRequest,
+      savedRequestId: s.savedRequestId,
+      setName: s.setName,
+      setSavedRequestId: s.setSavedRequestId,
+    }))
+  );
   const saveRequest = useSaveRequest();
+  const { data: collections } = useCollections(!!session && open);
+  const { data: savedRows } = useSavedRequests(!!session && open);
 
   const [name, setLocalName] = useState(activeRequest.name);
   const [includeCredentials, setIncludeCredentials] = useState(false);
+  const [choice, setChoice] = useState<CollectionChoice>(() => initialChoice(collections));
+  const [localError, setLocalError] = useState<string | null>(null);
   const hasCredentials = activeRequest.authType !== "none";
 
   useEffect(() => {
     if (open) {
       setLocalName(activeRequest.name);
+      setLocalError(null);
+      // Updating keeps the request in its current collection unless the user changes it
+      const currentCollection = savedRows?.find((r) => r.id === savedRequestId)?.collectionId;
+      setChoice(initialChoice(collections, currentCollection));
       saveRequest.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -53,6 +70,12 @@ export function SaveRequestDialog({ open, onClose }: { open: boolean; onClose: (
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const target = choiceToTarget(choice);
+    if (typeof target === "string") {
+      setLocalError(target);
+      return;
+    }
+    setLocalError(null);
     const trimmed = name.trim() || "Untitled Request";
     setName(trimmed);
     saveRequest.mutate(
@@ -60,6 +83,7 @@ export function SaveRequestDialog({ open, onClose }: { open: boolean; onClose: (
         id: savedRequestId,
         request: { ...activeRequest, name: trimmed },
         includeCredentials,
+        target,
       },
       {
         onSuccess: (id) => {
@@ -106,6 +130,8 @@ export function SaveRequestDialog({ open, onClose }: { open: boolean; onClose: (
           />
         </div>
 
+        <CollectionPicker id="request-collection" collections={collections} choice={choice} onChange={setChoice} />
+
         {hasCredentials && (
           <label className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 cursor-pointer">
             <input
@@ -123,9 +149,9 @@ export function SaveRequestDialog({ open, onClose }: { open: boolean; onClose: (
           </label>
         )}
 
-        {saveRequest.error && (
+        {(localError || saveRequest.error) && (
           <p role="alert" className="text-sm text-red-400">
-            {(saveRequest.error as Error).message}
+            {localError || (saveRequest.error as Error).message}
           </p>
         )}
       </form>

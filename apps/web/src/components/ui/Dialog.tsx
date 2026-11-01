@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,28 +27,36 @@ export function Dialog({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Callers usually pass an inline onClose; keep the latest one in a ref so the
+  // open effect below runs once per opening instead of on every parent render
+  // (re-running it stole focus from whatever field the user was typing in).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    // Focus the first field for keyboard users
-    const first = panelRef.current?.querySelector<HTMLElement>(
-      "input, select, textarea, button:not([data-dialog-close])"
-    );
+    // Focus the first field for keyboard users (form fields before buttons/tabs)
+    const panel = panelRef.current;
+    const first =
+      panel?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea") ??
+      panel?.querySelector<HTMLElement>("button:not([data-dialog-close])");
     first?.focus();
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> so a dialog opened from inside the (transformed) mobile
+  // drawer or any other stacking context still covers the whole screen
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div
@@ -85,6 +94,7 @@ export function Dialog({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

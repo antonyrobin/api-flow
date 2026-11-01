@@ -7,6 +7,7 @@ import { RequestBuilder } from "@/components/request-builder/RequestBuilder";
 import { ResponseViewer } from "@/components/response-viewer/ResponseViewer";
 import { ResizeHandle } from "@/components/ui/ResizeHandle";
 import { useRequestStore } from "@/stores/request-store";
+import { useShallow } from "zustand/react/shallow";
 import { useLayoutStore } from "@/stores/layout-store";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -26,8 +27,20 @@ import { BackupDialog } from "./BackupDialog";
 export function Workspace() {
   const [backupOpen, setBackupOpen] = useState(false);
   const isExecuting = useRequestStore((s) => s.isExecuting);
+  // Sidebar width changes (drag) shouldn't re-render the whole workspace
   const { responseOpen, splitDirection, splitRatio, toggleResponse, setResponseOpen, setSplitDirection, setSplitRatio, resetSplit } =
-    useLayoutStore();
+    useLayoutStore(
+      useShallow((s) => ({
+        responseOpen: s.responseOpen,
+        splitDirection: s.splitDirection,
+        splitRatio: s.splitRatio,
+        toggleResponse: s.toggleResponse,
+        setResponseOpen: s.setResponseOpen,
+        setSplitDirection: s.setSplitDirection,
+        setSplitRatio: s.setSplitRatio,
+        resetSplit: s.resetSplit,
+      }))
+    );
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const isWide = useMediaQuery("(min-width: 1536px)");
   const splitRef = useRef<HTMLDivElement>(null);

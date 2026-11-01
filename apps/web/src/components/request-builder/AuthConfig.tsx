@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useRequestStore } from "@/stores/request-store";
 import { cn } from "@/lib/utils";
 import { AUTH_TYPES } from "@api-flow/shared/constants";
@@ -16,7 +17,9 @@ const AUTH_TYPE_CONFIG = {
 };
 
 export function AuthConfig() {
-  const { activeRequest, setAuthType, setAuthConfig } = useRequestStore();
+  const { activeRequest, setAuthType, setAuthConfig } = useRequestStore(
+    useShallow((s) => ({ activeRequest: s.activeRequest, setAuthType: s.setAuthType, setAuthConfig: s.setAuthConfig }))
+  );
 
   return (
     <div className="space-y-6">

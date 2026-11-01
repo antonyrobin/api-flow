@@ -6,12 +6,15 @@ import { HTTP_METHODS, BODY_TYPES, AUTH_TYPES } from "../constants/http";
 // ============================================
 
 export const keyValuePairSchema = z.object({
-  id: z.string(),
-  key: z.string(),
-  value: z.string(),
+  id: z.string().max(128),
+  key: z.string().max(1024),
+  value: z.string().max(64 * 1024),
   enabled: z.boolean().default(true),
-  description: z.string().optional(),
+  description: z.string().max(1024).optional(),
 });
+
+/** Bounds stored rows so one request can't bloat the database */
+const MAX_PAIRS = 200;
 
 // ============================================
 // Auth Config Validator
@@ -36,19 +39,20 @@ export const authConfigSchema = z.object({
 // ============================================
 
 export const createRequestSchema = z.object({
-  collectionId: z.string().optional(),
-  folderId: z.string().optional(),
+  // null on update = remove from its collection / folder
+  collectionId: z.string().max(64).nullable().optional(),
+  folderId: z.string().max(64).nullable().optional(),
   name: z.string().min(1, "Request name is required").max(200),
   method: z.enum(HTTP_METHODS).default("GET"),
   url: z.string().max(4096).default(""),
-  headers: z.array(keyValuePairSchema).default([]),
-  queryParams: z.array(keyValuePairSchema).default([]),
-  body: z.string().nullable().default(null),
+  headers: z.array(keyValuePairSchema).max(MAX_PAIRS).default([]),
+  queryParams: z.array(keyValuePairSchema).max(MAX_PAIRS).default([]),
+  body: z.string().max(1024 * 1024).nullable().default(null),
   bodyType: z.enum(BODY_TYPES).default("none"),
   authType: z.enum(AUTH_TYPES).default("none"),
   authConfig: authConfigSchema.default({}),
-  preRequestScript: z.string().nullable().optional(),
-  testScript: z.string().nullable().optional(),
+  preRequestScript: z.string().max(64 * 1024).nullable().optional(),
+  testScript: z.string().max(64 * 1024).nullable().optional(),
 });
 
 export const updateRequestSchema = createRequestSchema.partial();

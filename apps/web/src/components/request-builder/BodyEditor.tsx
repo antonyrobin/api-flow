@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useRequestStore } from "@/stores/request-store";
 import { cn } from "@/lib/utils";
 import { BODY_TYPES, METHODS_WITH_BODY } from "@api-flow/shared/constants";
@@ -18,7 +19,9 @@ const BODY_TYPE_LABELS: Record<string, string> = {
 };
 
 export function BodyEditor() {
-  const { activeRequest, setBody, setBodyType } = useRequestStore();
+  const { activeRequest, setBody, setBodyType } = useRequestStore(
+    useShallow((s) => ({ activeRequest: s.activeRequest, setBody: s.setBody, setBodyType: s.setBodyType }))
+  );
 
   const showBodyWarning =
     !METHODS_WITH_BODY.includes(activeRequest.method) &&

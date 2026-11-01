@@ -30,16 +30,29 @@ export function configuredProviders(env: Env) {
   };
 }
 
+// One Better Auth instance per isolate + env binding set. Building it (adapter,
+// providers, plugins) on every request was measurable overhead on each API call.
+const instances = new WeakMap<Env, ReturnType<typeof createAuth>>();
+
+export function auth(env: Env) {
+  let instance = instances.get(env);
+  if (!instance) {
+    instance = createAuth(env);
+    instances.set(env, instance);
+  }
+  return instance;
+}
+
 /**
  * Create a Better Auth instance configured for:
  * - Email/password with email verification and password reset (emails via Resend)
  * - Google OAuth / Apple Sign-In (only when credentials are configured)
  * - Drizzle + D1 database adapter
  *
- * This is called per-request because Cloudflare Workers
- * don't have persistent process-level state for env bindings.
+ * Cached per env object (see auth() above): bindings are fixed for the
+ * lifetime of an isolate, so the instance can be reused across requests.
  */
-export function auth(env: Env) {
+function createAuth(env: Env) {
   const db = drizzle(env.DB, { schema });
   const isDev = isDevelopment(env);
 
@@ -167,6 +180,10 @@ export function auth(env: Env) {
     },
 
     advanced: {
+      // Rate limits are per client IP. Cloudflare sets cf-connecting-ip (clients can't
+      // spoof it); without this Better Auth found no IP and used one bucket shared by
+      // every user, so a few bad sign-ins could lock everyone out.
+      ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
       useSecureCookies: !isDev,
       // The web app and API live on different sites in production
       // (pages.dev / workers.dev), so the session cookie must be SameSite=None.

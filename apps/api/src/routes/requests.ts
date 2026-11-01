@@ -88,10 +88,10 @@ requestsRoutes.get("/:id", async (c) => {
   const result = await db
     .select()
     .from(requests)
-    .where(eq(requests.id, id))
+    .where(and(eq(requests.id, id), eq(requests.userId, userId)))
     .get();
 
-  if (!result || result.userId !== userId) {
+  if (!result) {
     return c.json({ error: { message: "Request not found" } }, 404);
   }
 
@@ -164,6 +164,15 @@ requestsRoutes.patch(
       return c.json({ error: { message: "Request not found" } }, 404);
     }
 
+    // Moving to another collection drops the old folder unless a new one is given
+    if (
+      body.collectionId !== undefined &&
+      body.folderId === undefined &&
+      (body.collectionId ?? null) !== existing.collectionId
+    ) {
+      body.folderId = null;
+    }
+
     if (body.collectionId !== undefined || body.folderId !== undefined) {
       const parentError = await validateParents(
         db,
@@ -188,10 +197,13 @@ requestsRoutes.patch(
     if (body.authConfig !== undefined) updates.authConfig = JSON.stringify(body.authConfig);
     if (body.preRequestScript !== undefined) updates.preRequestScript = body.preRequestScript;
     if (body.testScript !== undefined) updates.testScript = body.testScript;
-    if (body.collectionId !== undefined) updates.collectionId = body.collectionId;
-    if (body.folderId !== undefined) updates.folderId = body.folderId;
+    if (body.collectionId !== undefined) updates.collectionId = body.collectionId || null;
+    if (body.folderId !== undefined) updates.folderId = body.folderId || null;
 
-    await db.update(requests).set(updates).where(eq(requests.id, id));
+    await db
+      .update(requests)
+      .set(updates)
+      .where(and(eq(requests.id, id), eq(requests.userId, userId)));
 
     return c.json({ data: { id, ...updates } });
   }

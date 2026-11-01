@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -8,6 +8,7 @@ import {
   DatabaseBackup,
   FilePlus2,
   Folder,
+  FolderInput,
   FolderOpen,
   Library,
   Loader2,
@@ -23,33 +24,64 @@ import {
   useCollections,
   useDeleteCollection,
   useDeleteRequest,
+  useMoveRequestToCollection,
   useSavedRequests,
   type CollectionRow,
   type SavedRequestRow,
 } from "@/hooks/use-saved-requests";
 import { MethodBadge } from "@/components/ui/MethodBadge";
+import { Dialog } from "@/components/ui/Dialog";
+import { useSidebarDrawer } from "@/components/layout/AppShell";
+import { CollectionPicker, choiceToTarget, initialChoice, type CollectionChoice } from "./CollectionPicker";
 
-export function SavedRequestsSidebar({ onOpenBackup }: { onOpenBackup: () => void }) {
+export function SavedRequestsSidebar({ onOpenBackup: openBackup }: { onOpenBackup: () => void }) {
   const { data: session, isPending } = useSession();
   const isSignedIn = !!session;
   const { data: requests, isLoading, error } = useSavedRequests(isSignedIn);
   const { data: collections } = useCollections(isSignedIn);
   const deleteCollection = useDeleteCollection();
-  const { newTab } = useRequestStore();
+  // Select only the action so typing in the editor doesn't re-render the sidebar
+  const newTab = useRequestStore((s) => s.newTab);
+  const { closeDrawer } = useSidebarDrawer();
   const [filter, setFilter] = useState("");
+  const [moving, setMoving] = useState<SavedRequestRow | null>(null);
+
+  const onOpenBackup = () => {
+    closeDrawer();
+    openBackup();
+  };
 
   const q = filter.trim().toLowerCase();
-  const filtered = (requests ?? []).filter(
-    (r) => !q || r.name.toLowerCase().includes(q) || r.url.toLowerCase().includes(q)
+  const filtered = useMemo(
+    () =>
+      (requests ?? []).filter(
+        (r) => !q || r.name.toLowerCase().includes(q) || r.url.toLowerCase().includes(q)
+      ),
+    [requests, q]
   );
-  const loose = filtered.filter((r) => !r.collectionId || !collections?.some((c) => c.id === r.collectionId));
+  // Group once (O(n)) instead of filtering the whole list per collection
+  const byCollection = useMemo(() => {
+    const map = new Map<string | null, SavedRequestRow[]>();
+    const known = new Set(collections?.map((c) => c.id));
+    for (const r of filtered) {
+      const key = r.collectionId && known.has(r.collectionId) ? r.collectionId : null;
+      const list = map.get(key);
+      if (list) list.push(r);
+      else map.set(key, [r]);
+    }
+    return map;
+  }, [filtered, collections]);
+  const loose = byCollection.get(null) ?? [];
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="p-3 border-b border-line/5 flex gap-2">
         <button
           type="button"
-          onClick={() => newTab()}
+          onClick={() => {
+            newTab();
+            closeDrawer();
+          }}
           className="flex-1 btn-secondary text-sm flex items-center justify-center gap-2"
           title="New tab (Alt+T)"
         >
@@ -121,7 +153,7 @@ export function SavedRequestsSidebar({ onOpenBackup }: { onOpenBackup: () => voi
             )}
 
             {collections?.map((col) => {
-              const items = filtered.filter((r) => r.collectionId === col.id);
+              const items = byCollection.get(col.id) ?? [];
               if (q && items.length === 0) return null;
               return (
                 <CollectionGroup
@@ -129,6 +161,7 @@ export function SavedRequestsSidebar({ onOpenBackup }: { onOpenBackup: () => voi
                   collection={col}
                   requests={items}
                   forceOpen={!!q}
+                  onMove={setMoving}
                   onDelete={() => {
                     if (window.confirm(`Delete collection "${col.name}" and its ${items.length} request(s)?`)) {
                       deleteCollection.mutate(col.id);
@@ -141,7 +174,7 @@ export function SavedRequestsSidebar({ onOpenBackup }: { onOpenBackup: () => voi
             {loose.length > 0 && (
               <ul className={cn("space-y-0.5", collections?.length ? "mt-2 pt-2 border-t border-line/5" : "")}>
                 {loose.map((row) => (
-                  <RequestItem key={row.id} row={row} />
+                  <RequestItem key={row.id} row={row} onMove={() => setMoving(row)} />
                 ))}
               </ul>
             )}
@@ -161,6 +194,8 @@ export function SavedRequestsSidebar({ onOpenBackup }: { onOpenBackup: () => voi
           </Link>
         </div>
       )}
+
+      <AddToCollectionDialog row={moving} collections={collections} onClose={() => setMoving(null)} />
     </div>
   );
 }
@@ -169,11 +204,13 @@ function CollectionGroup({
   collection,
   requests,
   forceOpen,
+  onMove,
   onDelete,
 }: {
   collection: CollectionRow;
   requests: SavedRequestRow[];
   forceOpen: boolean;
+  onMove: (row: SavedRequestRow) => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -194,7 +231,10 @@ function CollectionGroup({
     return path;
   }, [collection.folders]);
 
-  const sorted = [...requests].sort((a, b) => folderPath(a.folderId).localeCompare(folderPath(b.folderId)));
+  const sorted = useMemo(
+    () => [...requests].sort((a, b) => folderPath(a.folderId).localeCompare(folderPath(b.folderId))),
+    [requests, folderPath]
+  );
 
   return (
     <div className="mb-1">
@@ -227,7 +267,7 @@ function CollectionGroup({
         <ul className="ml-3 pl-2 border-l border-line/5 space-y-0.5 mt-0.5">
           {sorted.length === 0 && <li className="text-2xs text-gray-600 px-3 py-1.5">Empty collection</li>}
           {sorted.map((row) => (
-            <RequestItem key={row.id} row={row} folder={folderPath(row.folderId)} />
+            <RequestItem key={row.id} row={row} folder={folderPath(row.folderId)} onMove={() => onMove(row)} />
           ))}
         </ul>
       )}
@@ -235,16 +275,24 @@ function CollectionGroup({
   );
 }
 
-function RequestItem({ row, folder }: { row: SavedRequestRow; folder?: string }) {
-  const { savedRequestId, openSavedRequest, detachSavedRequest } = useRequestStore();
+function RequestItem({ row, folder, onMove }: { row: SavedRequestRow; folder?: string; onMove: () => void }) {
+  // Narrow selectors: an item only re-renders when its own active state changes
+  const isActive = useRequestStore((s) => s.savedRequestId === row.id);
+  const openSavedRequest = useRequestStore((s) => s.openSavedRequest);
+  const detachSavedRequest = useRequestStore((s) => s.detachSavedRequest);
+  const { closeDrawer } = useSidebarDrawer();
   const deleteRequest = useDeleteRequest();
 
   return (
     <li className="group relative">
       <button
         type="button"
-        onClick={() => openSavedRequest(rowToApiRequest(row), row.id)}
-        className={cn("w-full sidebar-item pr-9 text-left", savedRequestId === row.id && "sidebar-item-active")}
+        onClick={() => {
+          openSavedRequest(rowToApiRequest(row), row.id);
+          // On phones the sidebar is a drawer over the request — get it out of the way
+          closeDrawer();
+        }}
+        className={cn("w-full sidebar-item pr-16 text-left", isActive && "sidebar-item-active")}
       >
         <MethodBadge method={row.method} size="sm" className="shrink-0 w-14 text-center" />
         <span className="min-w-0">
@@ -254,6 +302,15 @@ function RequestItem({ row, folder }: { row: SavedRequestRow; folder?: string })
             {row.url}
           </span>
         </span>
+      </button>
+      <button
+        type="button"
+        aria-label={`${row.collectionId ? "Move" : "Add"} ${row.name} to a collection`}
+        title={row.collectionId ? "Move to collection" : "Add to collection"}
+        onClick={onMove}
+        className="absolute right-8 top-1/2 -translate-y-1/2 p-1.5 rounded text-gray-500 hover:text-brand-300 hover:bg-surface-4 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 transition-opacity"
+      >
+        <FolderInput className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -268,5 +325,79 @@ function RequestItem({ row, folder }: { row: SavedRequestRow; folder?: string })
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </li>
+  );
+}
+
+function AddToCollectionDialog({
+  row,
+  collections,
+  onClose,
+}: {
+  row: SavedRequestRow | null;
+  collections: CollectionRow[] | undefined;
+  onClose: () => void;
+}) {
+  const move = useMoveRequestToCollection();
+  const [choice, setChoice] = useState<CollectionChoice>(() => initialChoice(collections));
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!row) return;
+    // Default to a collection other than the one it is already in
+    const other = collections?.find((c) => c.id !== row.collectionId);
+    setChoice(initialChoice(collections, other?.id));
+    setLocalError(null);
+    move.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!row) return;
+    const target = choiceToTarget(choice);
+    if (typeof target === "string") {
+      setLocalError(target);
+      return;
+    }
+    if ("collectionId" in target && target.collectionId === row.collectionId) {
+      onClose();
+      return;
+    }
+    move.mutate({ id: row.id, target }, { onSuccess: onClose });
+  };
+
+  const shownError = localError || (move.error as Error | null)?.message;
+
+  return (
+    <Dialog
+      open={!!row}
+      onClose={onClose}
+      title={row?.collectionId ? "Move to collection" : "Add to collection"}
+      description={row ? `"${row.name}"` : undefined}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="btn-secondary text-sm">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="add-to-collection-form"
+            disabled={move.isPending}
+            className="btn-primary text-sm disabled:opacity-60"
+          >
+            {move.isPending ? "Saving..." : row?.collectionId ? "Move" : "Add"}
+          </button>
+        </>
+      }
+    >
+      <form id="add-to-collection-form" onSubmit={handleSubmit} className="space-y-4">
+        <CollectionPicker id="move-collection" collections={collections} choice={choice} onChange={setChoice} />
+        {shownError && (
+          <p role="alert" className="text-sm text-red-400">
+            {shownError}
+          </p>
+        )}
+      </form>
+    </Dialog>
   );
 }

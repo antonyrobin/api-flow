@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useRequestStore } from "@/stores/request-store";
 import { ResponseMeta } from "@/components/ui/StatusBadge";
 import { TimingWaterfall } from "./TimingWaterfall";
@@ -21,7 +22,9 @@ type ResponseTab = "body" | "headers" | "timing";
 type ViewMode = "pretty" | "raw" | "preview";
 
 export function ResponseViewer() {
-  const { activeResponse, isExecuting, error } = useRequestStore();
+  const { activeResponse, isExecuting, error } = useRequestStore(
+    useShallow((s) => ({ activeResponse: s.activeResponse, isExecuting: s.isExecuting, error: s.error }))
+  );
   const [activeTab, setActiveTab] = useState<ResponseTab>("body");
 
   // Loading state
