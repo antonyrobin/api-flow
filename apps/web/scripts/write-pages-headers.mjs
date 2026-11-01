@@ -1,5 +1,6 @@
 /**
- * Writes out/_headers for Cloudflare Pages after `next build` (static export).
+ * Writes out/_headers after `next build` (static export). Cloudflare applies it on
+ * both Workers static assets (how api-flow-web is deployed) and Pages.
  * Mirrors the headers next.config.ts sends in development, with the production CSP
  * pointing connect-src at NEXT_PUBLIC_API_URL.
  */

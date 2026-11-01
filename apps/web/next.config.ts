@@ -36,7 +36,7 @@ export const securityHeaders = [
 ];
 
 /**
- * Production builds are a static export (`out/`) served by Cloudflare Pages:
+ * Production builds are a static export (`out/`) served by a Cloudflare Worker (static assets):
  * every page is client-rendered, so no server runtime is needed and the build
  * works on any OS. Security headers for production are written to `out/_headers`
  * by scripts/write-pages-headers.mjs; `headers()`/`rewrites()` only apply to `next dev`.

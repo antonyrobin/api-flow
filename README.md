@@ -7,7 +7,7 @@
 | Layer | Technology |
 |---|---|
 | **Monorepo** | Turborepo + pnpm |
-| **Web App** | Next.js 15 (App Router, static export on Cloudflare Pages, Tailwind CSS, TanStack Query, Zustand) |
+| **Web App** | Next.js 15 (App Router, static export on Cloudflare Workers static assets, Tailwind CSS, TanStack Query, Zustand) |
 | **API Server** | Hono (Cloudflare Workers) |
 | **Database** | Cloudflare D1 (SQLite at Edge) |
 | **ORM** | Drizzle ORM |
@@ -189,22 +189,24 @@ pnpm --filter @api-flow/db migrate:prod
 
 ---
 
-## Deployment (Cloudflare Workers + Pages)
+## Deployment (Cloudflare Workers)
 
 | Part | Hosted on | Command (run from the repo root) |
 |---|---|---|
 | Database migrations | Cloudflare D1 | `pnpm db:migrate:prod` |
 | API (`apps/api`) | Cloudflare Workers | `pnpm deploy:api` |
-| Web app (`apps/web`) | Cloudflare Pages (static files) | `pnpm deploy:web` |
+| Web app (`apps/web`) | Cloudflare Worker `api-flow-web` (static assets only) | `pnpm deploy:web` |
 | All three, in order | | `pnpm deploy:all` |
 
 > **Why not `pnpm --filter … deploy`?** `deploy` is a built-in pnpm command (it copies a package to a
 > folder), so it shadows the package script and fails with `ERR_PNPM_INVALID_DEPLOY_TARGET`.
 > Use the root scripts above, or call the script explicitly: `pnpm --filter @api-flow/api run deploy`.
 
-The web app is a **Next.js static export** (`apps/web/out`). Every page is client-rendered and talks to the
+The web app is a **Next.js static export** (`apps/web/out`) served by an assets-only Worker
+(`apps/web/wrangler.jsonc` → `assets.directory: "./out"`). Every page is client-rendered and talks to the
 API Worker, so no server runtime (and no `@cloudflare/next-on-pages` / Vercel CLI) is needed — the build
-works the same on Windows, macOS, Linux and in CI.
+works the same on Windows, macOS, Linux and in CI. Both apps deploy with plain `wrangler deploy`, so one
+Cloudflare token with **Workers** permissions covers everything (no Pages permission needed).
 
 ### 0. One-time setup
 
@@ -280,34 +282,36 @@ NEXT_PUBLIC_APP_URL=https://apiflow.redexoans.com
 ```
 
 Both the local `pnpm deploy:web` and Cloudflare's Git builds read this file. To override it, use
-`apps/web/.env.production.local` (local, git-ignored) or a Pages **build** environment variable
-(Pages project → Settings → Variables and Secrets, type *Text*) with the same name.
+`apps/web/.env.production.local` (local, git-ignored) or a **build variable** on the `api-flow-web`
+Worker (Settings → Build → Variables and secrets) with the same name.
 
-#### B. Deploy
+#### B. Deploy from your machine
 
 ```bash
 pnpm deploy:web
 ```
 
 This runs `next build` → `apps/web/out`, writes `out/_headers` (CSP + security headers, with
-`connect-src` set to your API) and uploads with `wrangler pages deploy out --project-name=api-flow-web --branch=main`.
-The first run creates the `api-flow-web` Pages project if it doesn't exist. The build stops with a clear
-message if `NEXT_PUBLIC_API_URL` is missing or still points at localhost.
+`connect-src` set to your API) and runs `wrangler deploy`, which uploads `out/` to the `api-flow-web`
+Worker. The build stops with a clear message if `NEXT_PUBLIC_API_URL` is missing or points at localhost.
 
-> If your Pages project's production branch isn't `main`, change `--branch` in
-> `apps/web/package.json` → `pages:deploy`, otherwise the upload lands as a preview deployment.
+#### C. Or deploy on every push (Workers Builds — recommended)
 
-#### Alternative: Cloudflare Pages Git integration
-
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → pick the repo.
-2. Build settings:
-   - **Framework preset**: `None`
+1. Cloudflare Dashboard → **Workers & Pages** → **api-flow-web** (create it with **Create → Import a repository**
+   if it doesn't exist; the name must match `name` in `apps/web/wrangler.jsonc`) → **Settings → Build**.
+2. **Git repository**: your repo · **Branch**: `main`.
+3. Build configuration:
    - **Root directory**: `apps/web`
    - **Build command**: `pnpm run pages:build`
-   - **Build output directory**: `out`
-3. Environment variables: none needed — the build reads `apps/web/.env.production` from the repo.
-4. Save and Deploy. Every push to the production branch redeploys the web app
-   (the API still deploys with `pnpm deploy:api`).
+   - **Deploy command**: `pnpm run pages:deploy` (runs `wrangler deploy`)
+   - **API token**: leave the default Workers Builds token — it already has the Workers permission
+     `wrangler deploy` needs. Do **not** add your own `CLOUDFLARE_API_TOKEN` build variable.
+4. **Settings → Domains & Routes**: attach your custom domain (e.g. `apiflow.redexoans.com`).
+5. Push to `main` — Cloudflare builds and deploys the site.
+
+If you use a custom API token instead (e.g. GitHub Actions), give it:
+**Account → Workers Scripts → Edit**, **Account → Account Settings → Read**, **User → User Details → Read**
+(plus **Zone → Workers Routes → Edit** if `wrangler.jsonc` defines routes).
 
 ### 4. After deploying
 
@@ -323,8 +327,10 @@ message if `NEXT_PUBLIC_API_URL` is missing or still points at localhost.
 | `ERR_PNPM_INVALID_DEPLOY_TARGET  This command requires one parameter` | Use `pnpm deploy:api` / `pnpm deploy:web` (or `pnpm --filter <pkg> run deploy`). |
 | `spawn pnpm ENOENT` from `@cloudflare/next-on-pages` | Old build pipeline (not Windows-compatible). Pull the latest code — the web app now builds with plain `next build`. |
 | Sign-in works locally but not in production / CORS errors | `NEXT_PUBLIC_APP_URL` in `apps/api/wrangler.jsonc` → `vars` must exactly match the web origin (no trailing slash). Extra domains go in `ALLOWED_ORIGINS`. Redeploy with `pnpm deploy:api`. |
-| `✖ NEXT_PUBLIC_API_URL is not set to your deployed API` in the Pages build | The build can't see the API URL. Make sure `apps/web/.env.production` is committed and pushed (a git-ignored `.env.production.local` never reaches Cloudflare). |
+| `✖ NEXT_PUBLIC_API_URL is not set to your deployed API` in the Cloudflare build | The build can't see the API URL. Make sure `apps/web/.env.production` is committed and pushed (a git-ignored `.env.production.local` never reaches Cloudflare). |
 | `It looks like you've run a Workers-specific command in a Pages project` | Run `wrangler secret put` from `apps/api` (the Worker), not `apps/web`. The web app needs no secrets. |
+| `Authentication error [code: 10000]` on `/pages/projects/api-flow-web` | The deploy command is still `wrangler pages deploy`. The web app now deploys as a Worker: set the deploy command to `pnpm run pages:deploy` (= `wrangler deploy`) with the latest code, and use the default Workers Builds token. |
+| Site shows "Hello world" | The `api-flow-web` Worker still runs the dashboard's starter script — deploy the web app (C above). |
 | Web app calls `localhost:8787` in production | `apps/web/.env.production` missing or wrong — fix it and redeploy the web app. |
 | "Provider not found" on social login | That provider's secrets aren't set on the Worker (`npx wrangler secret list`). |
 

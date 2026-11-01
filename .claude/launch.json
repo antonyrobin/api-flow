@@ -36,16 +36,14 @@
       "port": 3000
     },
     {
-      "name": "web-static",
+      "name": "web-worker",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--filter",
         "@api-flow/web",
         "exec",
         "wrangler",
-        "pages",
         "dev",
-        "out",
         "--port",
         "3000"
       ],

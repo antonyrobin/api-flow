@@ -1,9 +1,14 @@
 {
-  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Static-assets-only Worker serving the Next.js static export (out/).
+  // Name must match the Worker connected to Git in the dashboard (Workers Builds).
   "name": "api-flow-web",
-  "pages_build_output_dir": "out",
   "compatibility_date": "2025-04-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+  "assets": {
+    "directory": "./out",
+    // /login -> login.html, unknown paths -> out/404.html with a 404 status
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "observability": { "enabled": true }
 }
